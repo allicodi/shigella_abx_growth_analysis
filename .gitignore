@@ -1,0 +1,9 @@
+results
+results/case_control
+results/no_etiology
+results/other_diarrhea
+figures
+data
+.DS_Store
+.Rhistory
+code/run_analyses/archive

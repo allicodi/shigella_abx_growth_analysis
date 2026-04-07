@@ -1,0 +1,820 @@
+# ---------------------------------------------------------------------------
+# Script to run comparison of Shigella-attributable diarrhea (tac or culture)
+# to all other diarrhea in each study (supplement sensitivity analysis)
+# ---------------------------------------------------------------------------
+
+here::i_am("code/run_analyses/run_all_other_diarrhea.R")
+
+devtools::load_all("../packages/abxGrowth")
+
+library(SuperLearner)
+
+source(here::here("code/run_analyses/SL.wrappers.R"))
+
+# Load data ----------------------------------------------
+
+# Comparison to other diarrhea
+gems_data <- readRDS(here::here("data/gems_data/gems_data.Rds"))
+maled_data <- readRDS(here::here("data/maled_data/maled_data.Rds"))
+maled_data_MSD <- readRDS(here::here("data/maled_data/maled_data_shig_MSD_only.Rds"))
+vida_data <- readRDS(here::here("data/vida_data/vida_data.Rds"))
+efgh_data <- readRDS(here::here("data/efgh_data/efgh_data.Rds"))
+abcd_data <- readRDS(here::here("data/abcd_data/abcd_data.Rds"))
+
+# Outcome 1, Missingness
+sl.library.with.abx <- list(c("SL.glm", "SL.screen.abx.lt.min_prop"),
+                            c("SL.glm", "SL.screen.abx.glmnet"),
+                            c("SL.glm.spline.age.haz", "SL.screen.abx.lt.min_prop"),
+                            "SL.step.forward.spline.age.haz.abx",
+                            "SL.glmnet",
+                            "SL.ranger",
+                            "SL.earth",
+                            "SL.xgboost")
+
+# Propensity, outcome 2
+sl.library.without.abx <- list(c("SL.glm", "SL.screen.abx.lt.min_prop"),
+                               c("SL.glm", "screen.glmnet"),
+                               c("SL.glm.spline.age.haz", "SL.screen.abx.lt.min_prop"),
+                               "SL.step.forward.spline.age.haz",
+                               "SL.glmnet",
+                               "SL.ranger",
+                               "SL.earth",
+                               "SL.xgboost")
+
+sl.library.abcd.abx <- list(c("SL.glm", "SL.screen.abx.lt.min_prop"),
+                            "SL.mean")
+
+
+# GEMS ANALYSIS --------------------------------------------
+
+# Impute missing covariates
+gems_data_imp <- impute_covariates(gems_data,
+                                   imp_covariates = c("sex",
+                                                      "age",
+                                                      "ses_quintile",
+                                                      "safe_water",
+                                                      "safe_sanit",
+                                                      "enr_haz",
+                                                      "prim_caregiver_edu_bin",
+                                                      "num_hh_lt5",
+                                                      "rotavirus_attributable",
+                                                      "adenovirus_attributable",
+                                                      "aeromonas_attributable",
+                                                      "astro_attributable",
+                                                      "cryptosporidium_attributable",
+                                                      "cyclospora_attributable",
+                                                      "e_histolytica_attributable",
+                                                      "isospora_attributable",
+                                                      "noro_attributable",
+                                                      "salmonella_attributable",
+                                                      "sapovirus_attributable",
+                                                      "st_etec_attributable",
+                                                      "tepec_attributable",
+                                                      "v_cholerae_attributable",
+                                                      "EAEC_attributable",
+                                                      "shigella_new",
+                                                      "rotavirus_new",
+                                                      "adenovirus_new",
+                                                      "st_etec_new",
+                                                      "lt_etec_new",
+                                                      "crypto_new",
+                                                      "astro_new" ,
+                                                      "noro_new",
+                                                      "tepec_new" ,
+                                                      "campy_new",
+                                                      "sapo_new",
+                                                      "e_bieneusi_new",
+                                                      "giardia_new",
+                                                      "EAEC_new", 
+                                                      "dysentery",
+                                                      "vomit",
+                                                      "fever",
+                                                      "lsstools",
+                                                      "who_dehyd",
+                                                      "duration_pre_enroll"))
+
+one_hot_gems <- one_hot_encode(gems_data_imp,
+                               laz_var_name = "hazd60",
+                               covariate_list = c("sex",
+                                                  "age",
+                                                  "ses_quintile",
+                                                  "safe_water",
+                                                  "safe_sanit",
+                                                  "enr_haz",
+                                                  "prim_caregiver_edu_bin",
+                                                  "num_hh_lt5",
+                                                  "I_followup_days",
+                                                  "I_followup_days_x_followup_days",
+                                                  "site"),
+                               abx_var_name = "all_abx",
+                               site_var_name = "site",
+                               site_interaction = TRUE,
+                               severity_list = c("dysentery",
+                                                 "vomit",
+                                                 "fever",
+                                                 "lsstools",
+                                                 "who_dehyd",
+                                                 "duration_pre_enroll"),
+                               age_var_name = "age")
+
+# 1 - shigella attributable = all other cases in dataset
+one_hot_gems$data$other_diarrhea <- abs(1 - one_hot_gems$data$shigella_attributable)
+
+gems_results <- agaipw(data = one_hot_gems$data,
+                       laz_var_name = "hazd60",
+                       abx_var_name = "all_abx", 
+                       infection_var_name = "shigella_attributable",
+                       followup_var_names = c("I_followup_days", "I_followup_days_x_followup_days"),
+                       site_var_name = one_hot_gems$site_var_names,
+                       covariate_list = one_hot_gems$covariate_list,
+                       pathogen_quantity_list = c("shigella_new",
+                                                  "rotavirus_new",
+                                                  "adenovirus_new",
+                                                  "st_etec_new",
+                                                  "lt_etec_new",
+                                                  "crypto_new",
+                                                  "astro_new" ,
+                                                  "noro_new",
+                                                  "tepec_new" ,
+                                                  "campy_new",
+                                                  "sapo_new",
+                                                  "e_bieneusi_new",
+                                                  "giardia_new",
+                                                  "EAEC_new"),
+                       severity_list = one_hot_gems$severity_list,
+                       no_etiology_var_name = "other_diarrhea",
+                       first_id_var_name = "first_id",
+                       outcome_type = "gaussian",
+                       sl.library.outcome = sl.library.with.abx,
+                       sl.library.outcome.2 = sl.library.without.abx,
+                       sl.library.treatment = sl.library.without.abx,
+                       sl.library.infection = sl.library.without.abx,
+                       sl.library.missingness = sl.library.with.abx,
+                       v_folds = 5, 
+                       return_models = TRUE,
+                       msm = TRUE,
+                       msm_var_name = "age",
+                       msm_formula = "age",
+                       all_other_diarrhea = TRUE)
+
+#saveRDS(gems_results, here::here("results/other_diarrhea/gems_results_other_diarrhea.Rds"))
+gems_results$aipw_est$aipw_models <- NULL
+saveRDS(gems_results, here::here("results/other_diarrhea/gems_results_other_diarrhea_no_models.Rds"))
+
+# MAL-ED ANALYSIS ----------------------------------------------------------------------
+
+# All diarrhea
+maled_data_imp <- impute_covariates(data = maled_data,
+                                    site_var_name = "site",
+                                    imp_by_site = TRUE,
+                                    imp_covariates = c("site",
+                                                       "sex",
+                                                       "agemonths",
+                                                       "baseline_haz",
+                                                       "wami_quintile",
+                                                       "mated_bin", 
+                                                       "drinkimp",
+                                                       "sanitimp",
+                                                       "adenovirus_40_41_new", 
+                                                       "shigella_new",
+                                                       "aeromonas_new",                         
+                                                       "astrovirus_new",                        
+                                                       "campylobacter_pan_new",                 
+                                                       "cryptosporidium_new",                   
+                                                       "cyclospora_new",                        
+                                                       "e_histolytica_new",                     
+                                                       "isospora_new",                          
+                                                       "norovirus_new",                         
+                                                       "rotavirus_new",                         
+                                                       "salmonella_new",                        
+                                                       "sapovirus_new",                         
+                                                       "st_etec_new",                           
+                                                       "tEPEC_new",                             
+                                                       "v_cholerae_new",                        
+                                                       "ETEC_new",                              
+                                                       "e_bieneusi_new",                        
+                                                       "eaec_new",
+                                                       "dysentery",
+                                                       "fever",
+                                                       "fever_days",
+                                                       "dehyd",
+                                                       "lsstools",
+                                                       "daysvomit"))
+
+# Add "age" and "enr_haz" to match wrappers (go back and rename in raw data later)
+maled_data_imp$age <- maled_data_imp$agemonths
+maled_data_imp$enr_haz <- maled_data_imp$baseline_haz
+
+one_hot_maled <- one_hot_encode(data = maled_data_imp,
+                                laz_var_name = "month3_haz",
+                                covariate_list = c("site",
+                                                   "sex",
+                                                   "age",
+                                                   "wami_quintile",
+                                                   "enr_haz",
+                                                   "mated_bin", 
+                                                   "drinkimp",
+                                                   "sanitimp",
+                                                   "I_followup_days",
+                                                   "I_followup_days_x_followup_days"),
+                                abx_var_name = "all_abx",
+                                site_var_name = "site",
+                                site_interaction = TRUE,
+                                severity_list = c("dysentery",
+                                                  "fever",
+                                                  "fever_days",
+                                                  "dehyd",
+                                                  "lsstools",
+                                                  "daysvomit",
+                                                  "duration_pre_abx"),
+                                age_var_name = "age")
+
+one_hot_maled$data$other_diarrhea <- abs(1 - one_hot_maled$data$shigella_attributable)
+
+maled_results <- agaipw(data = one_hot_maled$data,
+                        laz_var_name = "month3_haz",
+                        abx_var_name = "all_abx", 
+                        infection_var_name = "shigella_attributable",
+                        site_var_name = one_hot_maled$site_var_names,
+                        followup_var_names = c("I_followup_days", "I_followup_days_x_followup_days"),
+                        covariate_list = one_hot_maled$covariate_list,
+                        pathogen_quantity_list = c("shigella_new",            
+                                                   "adenovirus_40_41_new",                  
+                                                   "aeromonas_new",                         
+                                                   "astrovirus_new",                        
+                                                   "campylobacter_pan_new",                 
+                                                   "cryptosporidium_new",                   
+                                                   "cyclospora_new",                        
+                                                   "e_histolytica_new",                     
+                                                   "isospora_new",                          
+                                                   "norovirus_new",                         
+                                                   "rotavirus_new",                         
+                                                   "salmonella_new",                        
+                                                   "sapovirus_new",                         
+                                                   "st_etec_new",                           
+                                                   "tEPEC_new",                             
+                                                   "v_cholerae_new",                        
+                                                   "ETEC_new",                              
+                                                   "e_bieneusi_new",                        
+                                                   "eaec_new"),
+                        severity_list = one_hot_maled$severity_list,
+                        no_etiology_var_name = "other_diarrhea",
+                        outcome_type = "gaussian",
+                        sl.library.outcome = sl.library.with.abx,
+                        sl.library.outcome.2 = sl.library.without.abx,
+                        sl.library.treatment = sl.library.without.abx,
+                        sl.library.infection = sl.library.without.abx,
+                        sl.library.missingness = c("SL.mean"), # mean bc not missing many obs
+                        v_folds = 5, 
+                        return_models = TRUE,
+                        msm = TRUE,
+                        msm_var_name = "age",
+                        msm_formula = "age",
+                        first_id_var_name = "pid",
+                        all_other_diarrhea = TRUE)
+
+#saveRDS(maled_results, here::here("results/other_diarrhea/maled_results_other_diarrhea.Rds"))
+maled_results$aipw_est$aipw_models <- NULL
+saveRDS(maled_results, here::here("results/other_diarrhea/maled_results_other_diarrhea_no_models.Rds"))
+
+# MSD only
+
+maled_data_imp_MSD <- impute_covariates(data = maled_data_MSD,
+                                        site_var_name = "site",
+                                        imp_by_site = TRUE,
+                                        imp_covariates = c("site",
+                                                           "sex",
+                                                           "agemonths",
+                                                           "baseline_haz",
+                                                           "wami_quintile",
+                                                           "mated_bin", 
+                                                           "drinkimp",
+                                                           "sanitimp",
+                                                           "adenovirus_40_41_new", 
+                                                           "shigella_new",
+                                                           "aeromonas_new",                         
+                                                           "astrovirus_new",                        
+                                                           "campylobacter_pan_new",                 
+                                                           "cryptosporidium_new",                   
+                                                           "cyclospora_new",                        
+                                                           "e_histolytica_new",                     
+                                                           "isospora_new",                          
+                                                           "norovirus_new",                         
+                                                           "rotavirus_new",                         
+                                                           "salmonella_new",                        
+                                                           "sapovirus_new",                         
+                                                           "st_etec_new",                           
+                                                           "tEPEC_new",                             
+                                                           "v_cholerae_new",                        
+                                                           "ETEC_new",                              
+                                                           "e_bieneusi_new",                        
+                                                           "eaec_new",
+                                                           "dysentery",
+                                                           "fever",
+                                                           "fever_days",
+                                                           "dehyd",
+                                                           "lsstools",
+                                                           "daysvomit"))
+
+# Add "age" and "enr_haz" to match wrappers (go back and rename in raw data later)
+maled_data_imp_MSD$age <- maled_data_imp_MSD$agemonths
+maled_data_imp_MSD$enr_haz <- maled_data_imp_MSD$baseline_haz
+
+one_hot_maled_MSD <- one_hot_encode(data = maled_data_imp_MSD,
+                                    laz_var_name = "month3_haz",
+                                    covariate_list = c("site",
+                                                       "sex",
+                                                       "age",
+                                                       "wami_quintile",
+                                                       "enr_haz",
+                                                       "mated_bin", 
+                                                       "drinkimp",
+                                                       "sanitimp",
+                                                       "I_followup_days",
+                                                       "I_followup_days_x_followup_days"),
+                                    abx_var_name = "all_abx",
+                                    site_var_name = "site",
+                                    site_interaction = TRUE,
+                                    severity_list = c("dysentery",
+                                                      "fever",
+                                                      "fever_days",
+                                                      "dehyd",
+                                                      "lsstools",
+                                                      "daysvomit",
+                                                      "duration_pre_abx"),
+                                    age_var_name = "age")
+
+one_hot_maled_MSD$data$other_diarrhea <- abs(1 - one_hot_maled_MSD$data$shigella_attributable)
+
+maled_results_MSD <- agaipw(data = one_hot_maled_MSD$data,
+                            laz_var_name = "month3_haz",
+                            abx_var_name = "all_abx", 
+                            infection_var_name = "shigella_attributable",
+                            site_var_name = one_hot_maled$site_var_names,
+                            followup_var_names = c("I_followup_days", "I_followup_days_x_followup_days"),
+                            covariate_list = one_hot_maled$covariate_list,
+                            pathogen_quantity_list = c("shigella_new",            
+                                                       "adenovirus_40_41_new",                  
+                                                       "aeromonas_new",                         
+                                                       "astrovirus_new",                        
+                                                       "campylobacter_pan_new",                 
+                                                       "cryptosporidium_new",                   
+                                                       "cyclospora_new",                        
+                                                       "e_histolytica_new",                     
+                                                       "isospora_new",                          
+                                                       "norovirus_new",                         
+                                                       "rotavirus_new",                         
+                                                       "salmonella_new",                        
+                                                       "sapovirus_new",                         
+                                                       "st_etec_new",                           
+                                                       "tEPEC_new",                             
+                                                       "v_cholerae_new",                        
+                                                       "ETEC_new",                              
+                                                       "e_bieneusi_new",                        
+                                                       "eaec_new"),
+                            severity_list = one_hot_maled$severity_list,
+                            no_etiology_var_name = "other_diarrhea",
+                            outcome_type = "gaussian",
+                            sl.library.outcome = sl.library.with.abx,
+                            sl.library.outcome.2 = sl.library.without.abx,
+                            sl.library.treatment = sl.library.without.abx,
+                            sl.library.infection = sl.library.without.abx,
+                            sl.library.missingness = c("SL.mean"), #  mean in MSD only version bc only one missing obs
+                            v_folds = 5, 
+                            return_models = TRUE,
+                            msm = TRUE,
+                            msm_var_name = "age",
+                            msm_formula = "age",
+                            first_id_var_name = "pid",
+                            all_other_diarrhea = TRUE)
+
+#saveRDS(maled_results, here::here("results/other_diarrhea/maled_results_MSD_other_diarrhea.Rds"))
+maled_results$aipw_est$aipw_models <- NULL
+saveRDS(maled_results, here::here("results/other_diarrhea/maled_results_MSD_other_diarrhea_no_models.Rds"))
+
+# VIDA ANALYSIS ----------------------------------------------------------------------
+
+vida_data_imp <- impute_covariates(data = vida_data,
+                                   site_var_name = "site",
+                                   imp_by_site = TRUE,
+                                   imp_covariates = c("sex",
+                                                      "agemchild",
+                                                      "ses_quintile",
+                                                      "safe_water",
+                                                      "safe_sanit",
+                                                      "enr_haz",
+                                                      "site",
+                                                      "education_bin",
+                                                      "num_hh_lt5",
+                                                      "I_followup_days",
+                                                      "I_followup_days_x_followup_days",
+                                                      "shigella_new",                   
+                                                      "rotavirus_new",                  
+                                                      "st_etec_new",                    
+                                                      "crypto_new",                     
+                                                      "adeno_new",                      
+                                                      "astro_new",                      
+                                                      "noro_gii_new",                       
+                                                      "tepec_new",                      
+                                                      "campy_new",                      
+                                                      "sapo_new",                       
+                                                      "giardia_new",                    
+                                                      "eaec_new",
+                                                      "lsstools",
+                                                      "vom_days",
+                                                      "vom_freq",
+                                                      "fever",
+                                                      "dehydr",
+                                                      "dysentery",
+                                                      "duration_pre_enroll"))
+
+vida_data_imp$age <- vida_data_imp$agemchild
+vida_data_imp <- vida_data_imp[which(!is.na(vida_data_imp$tac_shig)),]
+
+one_hot_vida <- one_hot_encode(data = vida_data_imp,
+                               laz_var_name = "hazd60",
+                               covariate_list = c("sex",
+                                                  "age",
+                                                  "ses_quintile",
+                                                  "safe_water",
+                                                  "safe_sanit",
+                                                  "enr_haz",
+                                                  "site",
+                                                  "education_bin",
+                                                  "num_hh_lt5",
+                                                  "I_followup_days",
+                                                  "I_followup_days_x_followup_days"),
+                               abx_var_name = "all_abx",
+                               site_var_name = "site",
+                               site_interaction = TRUE,
+                               severity_list = c("lsstools",
+                                                 "vom_days",
+                                                 "vom_freq",
+                                                 "fever",
+                                                 "dehydr",
+                                                 "dysentery",
+                                                 "duration_pre_enroll"),
+                               age_var_name = "age")
+
+one_hot_vida$data$other_diarrhea <- abs(1 - one_hot_vida$data$shigella_tac_or_culture)
+
+vida_results <- agaipw(data = one_hot_vida$data,
+                       laz_var_name = "hazd60",
+                       abx_var_name = "all_abx", 
+                       infection_var_name = "shigella_tac_or_culture",
+                       followup_var_names = c("I_followup_days", "I_followup_days_x_followup_days"),
+                       site_var_name = one_hot_vida$site_var_names,
+                       covariate_list = one_hot_vida$covariate_list,
+                       pathogen_quantity_list = c("shigella_new",                   
+                                                  "rotavirus_new",                  
+                                                  "st_etec_new",                    
+                                                  "crypto_new",                     
+                                                  "adeno_new",                      
+                                                  "astro_new",                      
+                                                  "noro_gii_new",                       
+                                                  "tepec_new",                      
+                                                  "campy_new",                      
+                                                  "sapo_new",                       
+                                                  "giardia_new",                    
+                                                  "eaec_new"),
+                       no_etiology_var_name = "other_diarrhea",
+                       first_id_var_name = "first_id",
+                       severity_list = one_hot_vida$severity_list,
+                       outcome_type = "gaussian",
+                       sl.library.outcome = sl.library.with.abx,
+                       sl.library.outcome.2 = sl.library.without.abx,
+                       sl.library.treatment = sl.library.without.abx,
+                       sl.library.infection = sl.library.without.abx,
+                       sl.library.missingness = sl.library.with.abx,
+                       v_folds = 5, 
+                       return_models = TRUE,
+                       msm = TRUE,
+                       msm_var_name = "age",
+                       msm_formula = "age",
+                       all_other_diarrhea = TRUE)
+
+#saveRDS(vida_results, here::here("results/other_diarrhea/vida_results_other_diarrhea.Rds"))
+vida_results$aipw_est$aipw_models <- NULL
+saveRDS(vida_results, here::here("results/other_diarrhea/vida_results_other_diarrhea_no_models.Rds"))
+
+# EFGH ANALYSIS ------------------------------------------------------------------------
+
+efgh_data_imp <- impute_covariates(data = efgh_data,
+                                   site_var_name = "enroll_site",
+                                   imp_covariates = c("sex",
+                                                      "enr_age_months",
+                                                      "enr_haz",
+                                                      "final_quintile_site",
+                                                      "imp_water",
+                                                      "imp_toi",
+                                                      "enroll_ai_num_child",
+                                                      "moth_ed_bin",
+                                                      "I_mo3_days",
+                                                      "I_mo3_days_x_mo3_days",
+                                                      "enroll_diar_blood",
+                                                      "enroll_diar_vom_days",
+                                                      "enroll_diar_vom_num",
+                                                      "enroll_diar_fever_days",
+                                                      "enroll_diar_fever",
+                                                      "enroll_diar_loose_num",
+                                                      "enroll_cond_dehyd",
+                                                      "duration_pre_enroll",
+                                                      "shigella_new",               
+                                                      "rotavirus_new",              
+                                                      "adenovirus_new",             
+                                                      "ETEC_new",                   
+                                                      "cryptosporidium_new",        
+                                                      "astrovirus_new",             
+                                                      "norovirus_gii_new",              
+                                                      "c_jejuni_new",               
+                                                      "tEPEC_new",                  
+                                                      "sapovirus_new",              
+                                                      "e_bieneusi_new",             
+                                                      "giardia_new",                
+                                                      "EAEC_new"))
+
+efgh_data_imp$age <- efgh_data_imp$enr_age_months
+efgh_data_imp <- efgh_data_imp[which(!is.na(efgh_data_imp$tac_shigella_attributable)),]
+
+one_hot_efgh <- one_hot_encode(data = efgh_data_imp,
+                               laz_var_name = "mo3_haz",
+                               covariate_list = c("sex",
+                                                  "age",
+                                                  "enr_haz",
+                                                  "final_quintile_site",
+                                                  "imp_water",
+                                                  "imp_toi",
+                                                  "enroll_ai_num_child",
+                                                  "moth_ed_bin",
+                                                  "I_mo3_days",
+                                                  "I_mo3_days_x_mo3_days"),
+                               abx_var_name = "all_abx",
+                               site_var_name = "enroll_site",
+                               site_interaction = TRUE,
+                               severity_list = c("enroll_diar_blood",
+                                                 "enroll_diar_vom_days",
+                                                 "enroll_diar_vom_num",
+                                                 "enroll_diar_fever_days",
+                                                 "enroll_diar_fever",
+                                                 "enroll_diar_loose_num",
+                                                 "enroll_cond_dehyd",
+                                                 "duration_pre_enroll"),
+                               age_var_name = "age")
+
+one_hot_efgh$data$other_diarrhea <- abs(1 - one_hot_efgh$data$positive_tac_or_culture)
+
+efgh_results <- agaipw(data = one_hot_efgh$data,
+                       laz_var_name = "mo3_haz",
+                       abx_var_name = "all_abx", 
+                       infection_var_name = "positive_tac_or_culture",
+                       site_var_name = one_hot_efgh$site_var_names,
+                       followup_var_names = c("I_mo3_days",
+                                              "I_mo3_days_x_mo3_days"),
+                       covariate_list = one_hot_efgh$covariate_list,
+                       pathogen_quantity_list = c("shigella_new",               
+                                                  "rotavirus_new",              
+                                                  "adenovirus_new",             
+                                                  "ETEC_new",                   
+                                                  "cryptosporidium_new",        
+                                                  "astrovirus_new",             
+                                                  "norovirus_gii_new",              
+                                                  "c_jejuni_new",               
+                                                  "tEPEC_new",                  
+                                                  "sapovirus_new",              
+                                                  "e_bieneusi_new",             
+                                                  "giardia_new",                
+                                                  "EAEC_new"),
+                       severity_list = one_hot_efgh$severity_list,
+                       no_etiology_var_name = "other_diarrhea",
+                       first_id_var_name = "first_id",
+                       outcome_type = "gaussian",
+                       sl.library.outcome = sl.library.with.abx,
+                       sl.library.outcome.2 = sl.library.without.abx,
+                       sl.library.treatment = sl.library.without.abx,
+                       sl.library.infection = sl.library.without.abx,
+                       sl.library.missingness = sl.library.with.abx,
+                       v_folds = 5, 
+                       return_models = TRUE,
+                       msm = TRUE,
+                       msm_var_name = "age",
+                       msm_formula = "age",
+                       all_other_diarrhea = TRUE)
+
+#saveRDS(efgh_results, here::here("results/other_diarrhea/efgh_results_other_diarrhea.Rds"))
+efgh_results$aipw_est$aipw_models <- NULL
+saveRDS(efgh_results, here::here("results/other_diarrhea/efgh_results_other_diarrhea_no_models.Rds"))
+
+# ABCD ANALYSIS ----------------------------------------------------------------
+
+abcd_data_select <- abcd_data[,colnames(abcd_data) %in% c("pid",
+                                                          "site",
+                                                          "dy1_ant_sex",
+                                                          "agemchild",
+                                                          "lfazscore",
+                                                          # "wfazscore",
+                                                          "an_ses_quintile",
+                                                          "an_tothhlt5",
+                                                          "I_an_d90_timing",
+                                                          "I_an_d90_timing_x_an_d90_timing",
+                                                          "rotavirus_new",                  
+                                                          "norovirus_gii_new",                  
+                                                          "adenovirus_new",                 
+                                                          "astrovirus_new",                 
+                                                          "sapovirus_new",                  
+                                                          "st_etec_new",                    
+                                                          "shigella_new",                   
+                                                          "campylobacter_new",              
+                                                          "tepec_new",                      
+                                                          "v_cholerae_new",                 
+                                                          "salmonella_new",
+                                                          "an_grp_01",
+                                                          "shigella_likely",
+                                                          "lazd90",
+                                                          "no_etiology")]
+
+abcd_data_imp <- impute_covariates(abcd_data_select, 
+                                   imp_covariates = c("site",
+                                                      "dy1_ant_sex",
+                                                      "agemchild",
+                                                      "lfazscore",
+                                                      # "wfazscore",
+                                                      "an_ses_quintile",
+                                                      "an_tothhlt5",
+                                                      "I_an_d90_timing",
+                                                      "I_an_d90_timing_x_an_d90_timing",
+                                                      "rotavirus_new",                  
+                                                      "norovirus_gii_new",                  
+                                                      "adenovirus_new",                 
+                                                      "astrovirus_new",                 
+                                                      "sapovirus_new",                  
+                                                      "st_etec_new",                    
+                                                      "shigella_new",                   
+                                                      "campylobacter_new",              
+                                                      "tepec_new",                      
+                                                      "v_cholerae_new",                 
+                                                      "salmonella_new"),
+                                   site_var_name = "site")
+
+abcd_data_imp$age <- abcd_data_imp$agemchild
+abcd_data_imp$enr_haz <- abcd_data_imp$lfazscore
+abcd_data_imp$all_abx <- factor(abcd_data_imp$an_grp_01, levels = 0:1, labels = c("No azithromycin", "Azithromycin"))
+
+one_hot_abcd <- one_hot_encode(data = abcd_data_imp,
+                               laz_var_name = "lazd90",
+                               covariate_list = c("site",
+                                                  "dy1_ant_sex",
+                                                  "age",
+                                                  "enr_haz",
+                                                  "an_ses_quintile",
+                                                  "an_tothhlt5",
+                                                  "I_an_d90_timing",
+                                                  "I_an_d90_timing_x_an_d90_timing"),
+                               abx_var_name = "all_abx",
+                               site_var_name = "site",
+                               site_interaction = TRUE,
+                               age_var_name = "age")
+
+one_hot_abcd$data$other_diarrhea <- abs(1 - one_hot_abcd$data$shigella_likely)
+
+abcd_results <- agaipw(data = one_hot_abcd$data,
+                       laz_var_name = "lazd90",
+                       abx_var_name = "all_abx",
+                       infection_var_name = "shigella_likely",
+                       site_var_name = one_hot_abcd$site_var_names,
+                       followup_var_names = c("I_an_d90_timing","I_an_d90_timing_x_an_d90_timing"),
+                       covariate_list = one_hot_abcd$covariate_list,
+                       pathogen_quantity_list = c("rotavirus_new",                  
+                                                  "norovirus_gii_new",                  
+                                                  "adenovirus_new",                 
+                                                  "astrovirus_new",                 
+                                                  "sapovirus_new",                  
+                                                  "st_etec_new",                    
+                                                  "shigella_new",                   
+                                                  "campylobacter_new",              
+                                                  "tepec_new",                      
+                                                  "v_cholerae_new",                 
+                                                  "salmonella_new"),
+                       no_etiology_var_name = "other_diarrhea",
+                       first_id_var_name = "pid",
+                       outcome_type = "gaussian",
+                       sl.library.outcome = sl.library.with.abx,
+                       sl.library.outcome.2 = sl.library.without.abx,
+                       sl.library.treatment = sl.library.abcd.abx,
+                       sl.library.infection = sl.library.without.abx,
+                       sl.library.missingness = sl.library.with.abx,
+                       v_folds = 5, 
+                       return_models = TRUE,
+                       msm = TRUE,
+                       msm_var_name = "age",
+                       msm_formula = "age",
+                       all_other_diarrhea = TRUE)
+
+#saveRDS(abcd_results, here::here("results/other_diarrhea/abcd_results_other_diarrhea.Rds"))
+abcd_results$aipw_est$aipw_models <- NULL
+saveRDS(abcd_results, here::here(paste0("results/other_diarrhea/abcd_results_other_diarrhea_no_models.Rds")))
+
+# IPD ANALYSIS ----------------------------------------------------------------
+
+# main dataset uses MSD MAL-ED only
+data <- readRDS(here::here("data/ipd_data/ipd_data_no_etiology.Rds"))
+
+imp_data <- impute_covariates(data = data,
+                              imp_covariates = c("sex",
+                                                 "age",
+                                                 "ses_quintile",
+                                                 "enr_haz",
+                                                 "edu_bin",
+                                                 "site",
+                                                 "I_followup_days",
+                                                 "I_followup_days_x_followup_days",
+                                                 "dysentery",
+                                                 "any_vom",
+                                                 "any_fev",
+                                                 "dehyd_level",
+                                                 "lsstools",
+                                                 "duration_pre_enroll",
+                                                 "shigella_new" ,
+                                                 "rotavirus_new",
+                                                 "adenovirus_new" ,
+                                                 "etec_new" ,
+                                                 "cryptosporidium_new"  ,
+                                                 "astrovirus_new" ,
+                                                 "norovirus_gii_new" ,
+                                                 "tepec_new",
+                                                 "campylobacter_new" ,
+                                                 "sapovirus_new" ,
+                                                 "giardia_new"  ,
+                                                 "e_bieneusi_new"  ,
+                                                 "eaec_new"))
+one_hot_data <- one_hot_encode(imp_data,
+                               laz_var_name = "final_haz",
+                               covariate_list = c("sex",
+                                                  "age",
+                                                  "ses_quintile",
+                                                  "enr_haz",
+                                                  "I_followup_days",
+                                                  "I_followup_days_x_followup_days",
+                                                  "site",
+                                                  "edu_bin",
+                                                  "num_hh_lt5",
+                                                  "imp_water",
+                                                  "imp_sanit"),
+                               abx_var_name = "all_abx",
+                               site_var_name = "site",
+                               site_interaction = TRUE,
+                               severity_list = c("dysentery",
+                                                 "any_vom",
+                                                 "lsstools",
+                                                 "dehyd_level",
+                                                 "duration_pre_enroll",
+                                                 "any_fev"),
+                               age_var_name = "age")
+
+one_hot_data$data$other_diarrhea <- abs(1 - one_hot_data$data$shig_attr)
+
+# The following variables are missing in some studies
+# water / sanitation - missing abcd - set to 0
+# num children in hh - missing maled - set to 1
+# education - missing in abcd - set to 0
+# fever - missing in abcd - set to 0
+
+ipd_results <- agaipw(data = one_hot_data$data,
+                      laz_var_name = "final_haz",
+                      abx_var_name = "all_abx", 
+                      infection_var_name = "shig_attr",
+                      followup_var_names = c("I_followup_days", "I_followup_days_x_followup_days"),
+                      site_var_name = one_hot_data$site_var_names,
+                      covariate_list = one_hot_data$covariate_list,
+                      pathogen_quantity_list = c("shigella_new",
+                                                 "rotavirus_new",
+                                                 "adenovirus_new",
+                                                 "etec_new",
+                                                 "cryptosporidium_new",
+                                                 "astrovirus_new" ,
+                                                 "norovirus_gii_new",
+                                                 "tepec_new" ,
+                                                 "campylobacter_new",
+                                                 "sapovirus_new",
+                                                 "e_bieneusi_new",
+                                                 "giardia_new",
+                                                 "eaec_new"),
+                      severity_list = one_hot_data$severity_list,
+                      no_etiology_var_name = "other_diarrhea",
+                      first_id_var_name = "first_id",
+                      outcome_type = "gaussian",
+                      sl.library.outcome = sl.library.with.abx,
+                      sl.library.outcome.2 = sl.library.without.abx,
+                      sl.library.treatment = sl.library.without.abx,
+                      sl.library.infection = sl.library.without.abx,
+                      sl.library.missingness = sl.library.with.abx,
+                      v_folds = 5, 
+                      return_models = TRUE,
+                      msm = TRUE,
+                      msm_var_name = "age",
+                      msm_formula = "age",
+                      all_other_diarrhea = TRUE)
+
+#saveRDS(ipd_results, here::here("results/other_diarrhea/ipd_other_diarrhea_other_diarrhea.Rds"))
+ipd_results$aipw_est$aipw_models <- NULL
+saveRDS(ipd_results, here::here("results/other_diarrhea/ipd_other_diarrhea_no_models.Rds"))
+
