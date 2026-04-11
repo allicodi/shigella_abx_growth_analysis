@@ -6,8 +6,8 @@ here::i_am("code/create_figures/figure_4_case_control.R")
 
 gems_results <- readRDS(here::here("results/case_control/gems_tac_or_culture_no_models.Rds"))
 vida_results <- readRDS(here::here("results/case_control/vida_tac_or_culture_no_models.Rds"))
-#maled_results <- readRDS(here::here("results/case_control/maled_msd_tac_or_culture_no_models.Rds"))
-maled_results <- readRDS(here::here("results/case_control/maled_tac_or_culture_no_models.Rds"))
+maled_results <- readRDS(here::here("results/case_control/maled_msd_tac_or_culture_no_models.Rds"))
+#maled_results <- readRDS(here::here("results/case_control/maled_tac_or_culture_no_models.Rds"))
 
 ipd_results <- readRDS(here::here("results/case_control/ipd_results_msd_case_control_no_models_tac_or_culture.Rds"))
 

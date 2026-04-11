@@ -11,15 +11,15 @@ library(SuperLearner)
 source(here::here("code/run_analyses/SL.wrappers.R"))
 
 # msd only, lsd only, if both false include all (no subset)
-msd <- FALSE
+msd <- TRUE
 lsd <- FALSE
 
 # change option for age stratified
 age_stratified <- TRUE
 
-age_0_11 <- FALSE
+age_0_11 <- TRUE
 age_12_23 <- FALSE
-age_24_59 <- TRUE
+age_24_59 <- FALSE
 
 if(msd){
   data <- readRDS("data/ipd_data/ipd_data_case_control_msd_tac_or_culture_shig.Rds")
@@ -485,12 +485,31 @@ if(!age_stratified){
     saveRDS(results, here::here("results/case_control/ipd_no_abx.Rds"))
   }
 } else{
-  if(age_0_11){
-    saveRDS(results, here::here("results/case_control/ipd_no_abx_0_11.Rds"))
-  } else if (age_12_23){
-    saveRDS(results, here::here("results/case_control/ipd_no_abx_12_23.Rds"))
+  if(msd){
+    if(age_0_11){
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_0_11_msd.Rds"))
+    } else if (age_12_23){
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_12_23_msd.Rds"))
+    } else{
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_24_59_msd.Rds"))
+    }
+  } else if(lsd){
+    if(age_0_11){
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_0_11_lsd.Rds"))
+    } else if (age_12_23){
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_12_23_lsd.Rds"))
+    } else{
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_24_59_lsd.Rds"))
+    }
   } else{
-    saveRDS(results, here::here("results/case_control/ipd_no_abx_24_59.Rds"))
+    if(age_0_11){
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_0_11.Rds"))
+    } else if (age_12_23){
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_12_23.Rds"))
+    } else{
+      saveRDS(results, here::here("results/case_control/ipd_no_abx_24_59.Rds"))
+    }
   }
+  
 }
 

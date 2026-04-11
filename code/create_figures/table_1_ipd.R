@@ -8,10 +8,13 @@ library(gtsummary)
 library(flextable)
 library(officer)
 
-here::i_am("misc/table1_ipd.R")
+here::i_am("code/create_figures/table_1_ipd.R")
 
-ipd_data <- readRDS("ipd_data/ipd_data_no_etiology.Rds")
-ipd_case_control <- readRDS("ipd_data/ipd_data_case_control.Rds")
+ipd_data <- readRDS("data/ipd_data/ipd_data_no_etiology.Rds")
+ipd_case_control <- readRDS("data/ipd_data/ipd_data_case_control_msd_tac_or_culture_shig.Rds")
+
+ipd_case_control <- ipd_case_control %>%
+  rename( "norovirus_gii_new" = norovirus_new)
 
 # CHECK THAT CASE == SHIG_ATTR
 #table(ipd_case_control$study, ipd_case_control$case)
@@ -81,7 +84,7 @@ combo_ipd$all_abx <- factor(combo_ipd$all_abx, levels = c("No or ineffective ant
 
 combo_ipd <- combo_ipd %>%
   mutate(imp_water = if_else(study == "ABCD", NA, imp_water),
-          imp_sanit = if_else(study == "ABCD", NA, imp_water),
+          imp_sanit = if_else(study == "ABCD", NA, imp_sanit),
           num_hh_lt5 = if_else(study == "MALED", NA, num_hh_lt5),
           edu_bin = if_else(study == "ABCD", NA, edu_bin),
           any_fev = if_else(study == "ABCD", NA, any_fev))
@@ -94,7 +97,7 @@ combo_ipd <- combo_ipd %>%
          etec_bin = if_else(etec_new > 0, 1, 0),
          cryptosporidium_bin = if_else(cryptosporidium_new > 0, 1, 0),
          astrovirus_bin = if_else(astrovirus_new > 0, 1, 0),
-         norovirus_bin = if_else(norovirus_new > 0, 1, 0),
+         norovirus_gii_bin = if_else(norovirus_gii_new > 0, 1, 0),
          tepec_bin = if_else(tepec_new > 0, 1, 0),
          campylobacter_bin = if_else(campylobacter_new > 0, 1, 0),
          sapovirus_bin = if_else(sapovirus_new > 0, 1, 0),
@@ -107,7 +110,7 @@ combo_ipd <- combo_ipd %>%
                       etec_bin = "ETEC detected",
                       cryptosporidium_bin = "Cryptosporidium detected",
                       astrovirus_bin = "Astrovirus detected",
-                      norovirus_bin = "Norovirus detected",
+                      norovirus_gii_bin = "Norovirus GII detected",
                       tepec_bin = "tEPEC detected",
                       campylobacter_bin = "Campylobacter detected",
                       sapovirus_bin = "Sapovirus detected",
@@ -151,7 +154,7 @@ table_1 <- tbl_summary(
   include = c("sex", "age_bin", "enr_haz", "num_hh_lt5", "edu_bin", "water_bin", "sanit_bin",       # COVARIATES
               "dysentery",  "any_vom", "any_fev", "lsstools", "dehyd_level", "duration_pre_enroll", # SEVERITY
               #"shigella_bin", "rotavirus_bin", "adenovirus_bin", "etec_bin", "cryptosporidium_bin", # PATHOGEN DETECTED
-              #"astrovirus_bin", "norovirus_bin", "tepec_bin", "campylobacter_bin", "sapovirus_bin", 
+              #"astrovirus_bin", "norovirus_gii_bin", "tepec_bin", "campylobacter_bin", "sapovirus_bin", 
               #"giardia_bin", "e_bieneusi_bin", "eaec_bin",
               "all_abx"),
   statistic = list(
@@ -208,7 +211,7 @@ table_1_flex <- table_1 %>%
 read_docx() %>%
   body_add_flextable(table_1_flex) %>%
   body_end_section_landscape() %>%  
-  print(target = here::here("results/final/figures/table1_summary.docx"))
+  print(target = here::here("figures/table_1_descriptive.docx"))
 
 # EXPORT AS WORD AND MANUALLY GET RID OF MISSING ROW WHERE APPLICABLE
 ############################################################################
@@ -218,7 +221,7 @@ table_supp <- tbl_summary(
   data = combo_ipd,
   by = study_shig,  # stratify by combined variable
   include = c("shigella_bin", "rotavirus_bin", "adenovirus_bin", "etec_bin", "cryptosporidium_bin", # PATHOGEN DETECTED
-              "astrovirus_bin", "norovirus_bin", "tepec_bin", "campylobacter_bin", "sapovirus_bin", 
+              "astrovirus_bin", "norovirus_gii_bin", "tepec_bin", "campylobacter_bin", "sapovirus_bin", 
               "giardia_bin", "e_bieneusi_bin", "eaec_bin"),
   # statistic = list(
   #   all_continuous() ~ "{mean} ({sd})",  # fallback
@@ -274,7 +277,7 @@ table_supp_flex <- table_supp %>%
 read_docx() %>%
   body_add_flextable(table_supp_flex) %>%
   body_end_section_landscape() %>%  
-  print(target = here::here("results/final/figures/table_supp_summary.docx"))
+  print(target = here::here("figures/table_S2_PCR.docx"))
 
 
 
@@ -287,7 +290,7 @@ read_docx() %>%
 #                                 
 # table1_noetiology_pathq <- table1(
 #   ~ shigella_bin + rotavirus_bin + adenovirus_bin + etec_bin + cryptosporidium_bin + 
-#     astrovirus_bin + norovirus_bin + tepec_bin + campylobacter_bin + sapovirus_bin + 
+#     astrovirus_bin + norovirus_gii_bin + tepec_bin + campylobacter_bin + sapovirus_bin + 
 #     giardia_bin + e_bieneusi_bin + eaec_bin | study_label*shig_status, 
 #   data = ipd_data_subset, 
 #   overall = FALSE,
@@ -322,7 +325,7 @@ read_docx() %>%
 #          etec_bin = if_else(etec_new > 0, 1, 0),
 #          cryptosporidium_bin = if_else(cryptosporidium_new > 0, 1, 0),
 #          astrovirus_bin = if_else(astrovirus_new > 0, 1, 0),
-#          norovirus_bin = if_else(norovirus_new > 0, 1, 0),
+#          norovirus_gii_bin = if_else(norovirus_new > 0, 1, 0),
 #          tepec_bin = if_else(tepec_new > 0, 1, 0),
 #          campylobacter_bin = if_else(campylobacter_new > 0, 1, 0),
 #          sapovirus_bin = if_else(sapovirus_new > 0, 1, 0),
@@ -335,7 +338,7 @@ read_docx() %>%
 #                       etec_bin = "ETEC detected",
 #                       cryptosporidium_bin = "Cryptosporidium detected",
 #                       astrovirus_bin = "Astrovirus detected",
-#                       norovirus_bin = "Norovirus detected",
+#                       norovirus_gii_bin = "Norovirus detected",
 #                       tepec_bin = "tEPEC detected",
 #                       campylobacter_bin = "Campylobacter detected",
 #                       sapovirus_bin = "Sapovirus detected",
@@ -357,7 +360,7 @@ read_docx() %>%
 # 
 # table1_cc_pathq <- table1(
 #   ~ shigella_bin + rotavirus_bin + adenovirus_bin + etec_bin + cryptosporidium_bin + 
-#     astrovirus_bin + norovirus_bin + tepec_bin + campylobacter_bin + sapovirus_bin + 
+#     astrovirus_bin + norovirus_gii_bin + tepec_bin + campylobacter_bin + sapovirus_bin + 
 #     giardia_bin + e_bieneusi_bin + eaec_bin | study_label*case_status, 
 #   data = ipd_cc_data, 
 #   overall = FALSE,

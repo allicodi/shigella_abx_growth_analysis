@@ -5,11 +5,11 @@
 here::i_am("code/create_figures/figure_1_no_etiology.R")
 
 gems_results <- readRDS(here::here("results/no_etiology/gems_results_no_models.Rds"))
-#maled_results <- readRDS(here::here("results/no_etiology/maled_results_no_models2.Rds"))
+maled_results <- readRDS(here::here("results/no_etiology/maled_results_MSD_no_models.Rds"))
 vida_results <- readRDS(here::here("results/no_etiology/vida_results_no_models.Rds"))
 abcd_results <- readRDS(here::here("results/no_etiology/abcd_results_no_models.Rds"))
 efgh_results <- readRDS(here::here("results/no_etiology/efgh_results_no_models.Rds"))
-ipd_results <- readRDS(here::here("results/no_etiology/ipd_no_etiology_allcov_no_models.Rds"))
+ipd_results <- readRDS(here::here("results/no_etiology/ipd_no_etiology_no_models.Rds")) # this is the version with only MSD MAL-ED
 
 results <- list(gems_results, 
                 maled_results,

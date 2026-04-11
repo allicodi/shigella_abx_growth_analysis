@@ -8,7 +8,7 @@ library(ggplot2)
 library(patchwork)
 library(grid)
 
-no_etiology_results <- readRDS(here::here("results/no_etiology/ipd_no_etiology_allcov_no_models.Rds"))
+no_etiology_results <- readRDS(here::here("results/no_etiology/ipd_no_etiology_no_models.Rds"))
 case_control_results <- readRDS(here::here("results/case_control/ipd_results_msd_case_control_no_models_tac_or_culture.Rds"))
 
 no_etiology_msm <- no_etiology_results$aipw_est$results_object$aipw_msm

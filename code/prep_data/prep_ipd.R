@@ -120,7 +120,7 @@ levels(gems_data$site) <- c("The_Gambia_gems",
 gems_data$edu_bin <- gems_data$prim_caregiver_edu_bin
 
 gems_data$imp_water <- ifelse(gems_data$safe_water %in% c("Safely managed", "Basic"), 1, 0)
-gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely manaed and basic"), 1, 0)
+gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely managed and basic"), 1, 0)
 
 # VIDA
 vida_data <- vida_data %>%
@@ -914,7 +914,7 @@ gems_data$study <- "GEMS"
 vida_data$study <- "VIDA"
 maled_data$study <- "MALED"
 
-msd <- FALSE # subset MAL-ED to MSD cases
+msd <- TRUE # subset MAL-ED to MSD cases
 lsd <- FALSE
 
 # MAL-ED remove LSD cases & matched controls 
@@ -953,7 +953,7 @@ levels(gems_data$site) <- c("The_Gambia_gems",
 gems_data$edu_bin <- gems_data$prim_caregiver_edu_bin
 
 gems_data$imp_water <- ifelse(gems_data$safe_water %in% c("Safely managed", "Basic"), 1, 0)
-gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely manaed and basic"), 1, 0)
+gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely mangaed and basic"), 1, 0) # fixed typo 4/10/26
 
 # VIDA
 vida_data <- vida_data %>%
