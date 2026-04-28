@@ -47,8 +47,8 @@ ggplot2::ggplot(data = plot_data, aes(x = pt_est, y = subgroup, color = subgroup
                                " (", round(lower_ci, 3), ", ", round(upper_ci, 3), ")")),
             hjust = 0, vjust = 0.5, size = 4) +
   labs(x = "HAZ difference (95% CI)",
-       y = "Shigella severity",
-       color = "Shigella severity") +
+       y = "Age strata",
+       color = "Age strata") +
   theme_minimal(base_size = 14) +
   scale_color_manual(values = subgroup_colors) +
   theme(
