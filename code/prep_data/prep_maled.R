@@ -29,13 +29,74 @@ prep_mal_ed<- function(){
   diarrhea_data <- read.csv(here::here("data/maled_data/raw_data/diarrhea.csv"))
   maled_full <- read.csv(here::here("data/maled_data/raw_data/maled_full.csv"))
   
+  # serotyping data (called shig_tac)
+  load(here::here("data/maled_data/raw_data/Shigella serotypes with microtac 2026.RData"))
+  shig_tac <- shig_tac %>%
+    # deduplicate SID (there are only two samples this applies to )
+    select(SID, ipaH,`Shigella serotyping`,
+           "1a","1b","1d",
+           "2a", "2b", "3a","3b",
+           "4a", "4b", "5a","5b",
+           "6", "7a","S. sonnei", "X") %>%
+    group_by(SID) %>%
+    arrange(
+      desc(
+        rowSums(
+          !is.na(across(c(
+            "1a", "1b", "1d",
+            "2a", "2b", "3a", "3b",
+            "4a", "4b", "5a", "5b",
+            "6", "7a", "S. sonnei", "X"
+          )))
+        )
+      ),
+      .by_group = TRUE
+    ) %>%
+    slice(1) %>%
+    ungroup() %>%
+    mutate(
+      `S_flexneri` = as.integer(
+        if_any(
+          c("1a","1b","1d",
+            "2a","2b","3a","3b",
+            "4a","4b","5a","5b",
+            "6","7a","X"),
+          ~ .x == 1
+        )
+    )) %>%
+    rename('sid' = SID,
+           'S_sonnei' = `S. sonnei`)
+  
+  # Merge with tac_data
+  tac_data <- left_join(
+    tac_data, shig_tac, by = 'sid'
+  )
+  
   # for culture data
   micro_data <- read.csv(here::here("data/maled_data/raw_data/micro_x.csv"))
+  
+  # WAMI components
+  wami_components <- haven::read_sas(here::here("data/maled_data/raw_data/wami.sas7bdat"))
+  
+  wami_subset <- wami_components %>%
+    select(PID, fsecloc2, fseabank, fseamatt, fsearef, fseatv, newfsepeople, fseatab, fseachair2) %>%
+    rename(Pid = PID,
+           kitchen = fsecloc2,
+           bank = fseabank,
+           mattress = fseamatt,
+           fridge = fsearef,
+           tv = fseatv,
+           ppl_per_room = newfsepeople,
+           table = fseatab,
+           chair = fseachair2)
   
   # Get wami quintile by site based on full data (not just diarrhea episodees)
   maled_bl <- maled_bl %>%
     group_by(Country_ID) %>%
     mutate(wami_quintile = ntile(wamiimp, 5))
+  
+  # STOPPED HERE ADDING ASSETS
+  # maled_bl <- left_join(maled_bl, wami_subset, by = c("Pid", "agedays"))
   
   # Subset to kids with stooltype == "D1" to get diarrhea episodes
   tac_data <- tac_data[tac_data$stooltype == "D1",]
@@ -163,28 +224,29 @@ prep_mal_ed<- function(){
   tac_data$giardia_detect <- ifelse(tac_data$giardia < 35, 1, 0)
   tac_data$EAEC_detect <- ifelse(tac_data$EAEC < 35, 1, 0)
   
+  # NOW REMAKING ABX IN LONGITUDINAL DATA
   # Get initial abx treatment variables
-  tac_data$any_abx <- tac_data$abxtrt 
-  tac_data$who_abx <- ifelse(tac_data$macrotrt == 1 | tac_data$fluorotrt == 1, 1, 0)
-  
-  tac_data$maybe_eff_abx <- ifelse(tac_data$cephalotrt == 1 | tac_data$sulfontrt == 1 | tac_data$tetratrt == 1 | 
-                                     tac_data$othertrt == 1, 1, 0)
-  
-  tac_data$ineff_abx <- ifelse(tac_data$peniciltrt == 1 |
-                                 tac_data$metrontrt == 1 |
-                                 tac_data$unknowtrt == 1, 1, 0)
-  
-  tac_data$no_abx <- ifelse(tac_data$who_abx == 0 & tac_data$maybe_eff_abx == 0 & tac_data$ineff_abx == 0, 1, 0)
-  
-  tac_data$ineff_abx <- ifelse(tac_data$ineff_abx == 1 & (tac_data$who_abx == 1 | tac_data$maybe_eff_abx == 1), 0, tac_data$ineff_abx)
-  tac_data$maybe_eff_abx <- ifelse(tac_data$maybe_eff_abx == 1 & tac_data$who_abx == 1, 0, tac_data$maybe_eff_abx)
-  
-  tac_data$all_abx <- ifelse(tac_data$no_abx == 1 | tac_data$ineff_abx == 1, 0,
-                             ifelse(tac_data$maybe_eff_abx == 1, 1, 2))
-  
-  tac_data$all_abx <- factor(tac_data$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
-                                                                        "Possibly effective antibiotics",
-                                                                        "Guideline recommended antibiotics"))
+  # tac_data$any_abx <- tac_data$abxtrt 
+  # tac_data$who_abx <- ifelse(tac_data$macrotrt == 1 | tac_data$fluorotrt == 1, 1, 0)
+  # 
+  # tac_data$maybe_eff_abx <- ifelse(tac_data$cephalotrt == 1 | tac_data$sulfontrt == 1 | tac_data$tetratrt == 1 | 
+  #                                    tac_data$othertrt == 1, 1, 0)
+  # 
+  # tac_data$ineff_abx <- ifelse(tac_data$peniciltrt == 1 |
+  #                                tac_data$metrontrt == 1 |
+  #                                tac_data$unknowtrt == 1, 1, 0)
+  # 
+  # tac_data$no_abx <- ifelse(tac_data$who_abx == 0 & tac_data$maybe_eff_abx == 0 & tac_data$ineff_abx == 0, 1, 0)
+  # 
+  # tac_data$ineff_abx <- ifelse(tac_data$ineff_abx == 1 & (tac_data$who_abx == 1 | tac_data$maybe_eff_abx == 1), 0, tac_data$ineff_abx)
+  # tac_data$maybe_eff_abx <- ifelse(tac_data$maybe_eff_abx == 1 & tac_data$who_abx == 1, 0, tac_data$maybe_eff_abx)
+  # 
+  # tac_data$all_abx <- ifelse(tac_data$no_abx == 1 | tac_data$ineff_abx == 1, 0,
+  #                            ifelse(tac_data$maybe_eff_abx == 1, 1, 2))
+  # 
+  # tac_data$all_abx <- factor(tac_data$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+  #                                                                       "Possibly effective antibiotics",
+  #                                                                       "Guideline recommended antibiotics"))
   
   # Select relevant variables from TAC dataset
   tac_data <- tac_data %>%
@@ -196,6 +258,12 @@ prep_mal_ed<- function(){
            shigella_attributable,
            shigella_attributable_tac,
            culture_shigella,
+           S_sonnei,
+           S_flexneri,
+           "1a","1b","1d",
+           "2a", "2b", "3a","3b",
+           "4a", "4b", "5a","5b",
+           "6", "7a", "X",
            adenovirus_attributable,
            aeromonas_attributable,
            astro_attributable,
@@ -251,12 +319,12 @@ prep_mal_ed<- function(){
            e_bieneusi_new,
            eaec_new,
            giardia_new,
-           any_abx,
-           who_abx,
-           maybe_eff_abx, 
-           ineff_abx,
-           no_abx,
-           all_abx,
+           # any_abx,
+           # who_abx,
+           # maybe_eff_abx, 
+           # ineff_abx,
+           # no_abx,
+           # all_abx,
            prop_ebf30)
   
   # define daily who/any abx variables
@@ -272,8 +340,8 @@ prep_mal_ed<- function(){
                                    maled_full$saftetracycl == 1 | 
                                    maled_full$safunknown == 1, 1, 0)
   
+  # For a given day -- repeat after merging with tac data for episode level
   maled_full$no_abx <- ifelse(maled_full$who_abx == 0 & maled_full$maybe_eff_abx == 0 & maled_full$ineff_abx == 0 ,1, 0)
-  
   maled_full$ineff_abx <- ifelse(maled_full$ineff_abx == 1 & (maled_full$who_abx == 1 | maled_full$maybe_eff_abx ==1), 0, maled_full$ineff_abx)
   maled_full$maybe_eff_abx <- ifelse(maled_full$who_abx == 1 & maled_full$maybe_eff_abx == 1, 0, maled_full$maybe_eff_abx)
   
@@ -290,87 +358,131 @@ prep_mal_ed<- function(){
   maled_full$all_abx <- ifelse(maled_full$no_abx == 1 | maled_full$ineff_abx == 1, 0,
                                ifelse(maled_full$maybe_eff_abx == 1, 1, 2))
   
-  maled_full$all_abx <- factor(maled_full$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
-                                                                            "Possibly effective antibiotics",
-                                                                            "Guideline recommended antibiotics"))
-  
-  # remake severity variables such that it's severity before antibiotics
+
+    # remake severity variables such that it's severity before antibiotics
   severity_df <- lapply(1:nrow(tac_data), function(i){
     row <- tac_data[i, ]
     
+    # subset to episode
     episode_info <- maled_full[which(maled_full$stooldiaage == row$agedays &
                                        maled_full$Pid == row$pid),]
     
-    if(nrow(episode_info) == 0){
-      return(data.frame(maxb = NA,
-                        fever = NA,
-                        fever_days = NA,
-                        maxls = NA,
-                        sumvom = NA,
-                        maxdehyd = NA,
-                        alri = NA,
-                        safcough = NA,
-                        safshb = NA,
-                        fstab = NA,
-                        duration_pre_abx = 999)) # flag to remove row
-    }
-    
     # If no antibiotics, return overall info
-    if(sum(episode_info$who_abx) == 0 & sum(episode_info$any_abx) == 0 & sum(episode_info$maybe_eff_abx) == 0){
-      return(data.frame(maxb = episode_info$maxb[1],
-                        fever = episode_info$fever[1],
-                        fever_days = sum(episode_info$saffev, na.rm = TRUE),
-                        maxls = episode_info$maxls[1],
-                        sumvom = episode_info$sumvom[1],
-                        maxdehyd = episode_info$maxdehyd[1],
-                        alri = max(episode_info$alri),
-                        safcough = max(episode_info$safcough),
-                        safshb = max(episode_info$safshb),
-                        fstab = max(episode_info$fstab),
-                        duration_pre_abx = nrow(episode_info))) # returning length of episode 
+    if(sum(episode_info$any_abx) == 0){
+      return(data.frame(# Return abx info for whole episode
+        # these should all be 0, but copied logic for ease
+        who_abx = max(episode_info$who_abx), 
+        maybe_eff_abx = max(episode_info$maybe_eff_abx),
+        ineff_abx = max(episode_info$ineff_abx),
+        no_abx = max(episode_info$no_abx),
+        any_abx = max(episode_info$any_abx),
+        all_abx = max(episode_info$all_abx),
+        # Severity before guideline recommended abx
+        g_maxb = episode_info$maxb[1],
+        g_fever = episode_info$fever[1],
+        g_fever_days = sum(episode_info$saffev, na.rm = TRUE),
+        g_maxls = episode_info$maxls[1],
+        g_sumvom = episode_info$sumvom[1],
+        g_maxdehyd = episode_info$maxdehyd[1],
+        g_alri = max(episode_info$alri),
+        g_safcough = max(episode_info$safcough),
+        g_safshb = max(episode_info$safshb),
+        g_fstab = max(episode_info$fstab),
+        g_duration_pre_abx = nrow(episode_info),
+        # Severity before possibly effective abx
+        p_maxb = episode_info$maxb[1],
+        p_fever = episode_info$fever[1],
+        p_fever_days = sum(episode_info$saffev, na.rm = TRUE),
+        p_maxls = episode_info$maxls[1],
+        p_sumvom = episode_info$sumvom[1],
+        p_maxdehyd = episode_info$maxdehyd[1],
+        p_alri = max(episode_info$alri),
+        p_safcough = max(episode_info$safcough),
+        p_safshb = max(episode_info$safshb),
+        p_fstab = max(episode_info$fstab),
+        p_duration_pre_abx = nrow(episode_info)) # returning length of episode 
+      )
     } else{
       # duration of episode prior to and including day they got antibiotics 
       
-      # would like to specify for type coded in tac_data, for example if someone
-      # gets ineffective abx then WHO abx later in episode, count prior to WHO abx
-      # (added & all_abx == row$all_abx)
-      # but there are some instances where safmacrolide (daily macrolide var) == 0 for whole episode 
-      # even though macrotrt (episode treated with macrolides) == 1
-      # so leaving as min(age[any_abx == 1]) for now
+      # guideline only -- if received possibly or ineffective, still use whole episode
+      pre_guideline_abx <- episode_info %>%
+        mutate(
+          first_abx = if (any(who_abx %in% 1 & !is.na(age))) {
+            min(age[who_abx %in% 1 & !is.na(age)])
+          } else {
+            NA_real_
+          }
+        ) %>% 
+        filter(is.na(first_abx) | age <= first_abx)
       
-      pre_abx <- episode_info %>%
-        mutate(first_abx = min(age[any_abx == 1])) %>% # & all_abx == row$all_abx])) %>%
-        filter(age <= first_abx)
+      # possibly effective -- if received possibly effective and/or guideline, use the earlier of the two
+      pre_maybe_abx <- episode_info %>%
+        mutate(
+          abx_flag = who_abx %in% 1 | maybe_eff_abx %in% 1,
+          first_abx = if (any(abx_flag & !is.na(age))) {
+            min(age[abx_flag & !is.na(age)])
+          } else {
+            NA_real_
+          }
+        ) %>% 
+        filter(is.na(first_abx) | age <= first_abx) %>%
+        select(-abx_flag)
+      
+      # pre_abx <- episode_info %>%
+      #   mutate(first_abx = min(age[any_abx == 1])) %>% # & all_abx == row$all_abx])) %>%
+      #   filter(age <= first_abx)
       
       # duration of episode prior to and including day they got antibiotics = nrow(pre_abx)
-      
-      return(data.frame(maxb = max(pre_abx$safblood, na.rm = TRUE),
-                        fever = max(pre_abx$saffev, na.rm = TRUE), 
-                        fever_days = sum(pre_abx$saffev, na.rm = TRUE),
-                        maxls = max(pre_abx$safnumls, na.rm = TRUE),
-                        sumvom = sum(pre_abx$safvom, na.rm = TRUE),
-                        maxdehyd = max(pre_abx$safdehyd, na.rm = TRUE),
-                        alri = max(pre_abx$alri, na.rm = TRUE),
-                        safcough = max(pre_abx$safcough, na.rm = TRUE),
-                        safshb = max(pre_abx$safshb, na.rm = TRUE),
-                        fstab = max(episode_info$fstab, na.rm = TRUE),
-                        duration_pre_abx = nrow(pre_abx)))
+      # if they were taking abx on day 1, == 1
+      return(data.frame(# Return abx info for whole episode
+        who_abx = max(episode_info$who_abx), 
+        maybe_eff_abx = max(episode_info$maybe_eff_abx),
+        ineff_abx = max(episode_info$ineff_abx),
+        no_abx = max(episode_info$no_abx),
+        any_abx = max(episode_info$any_abx),
+        all_abx = max(episode_info$all_abx),
+        # Severity before guideline recommended abx
+        g_maxb = max(pre_guideline_abx$safblood, na.rm = TRUE),
+        g_fever = max(pre_guideline_abx$saffev, na.rm = TRUE), 
+        g_fever_days = sum(pre_guideline_abx$saffev, na.rm = TRUE),
+        g_maxls = max(pre_guideline_abx$safnumls, na.rm = TRUE),
+        g_sumvom = sum(pre_guideline_abx$safvom, na.rm = TRUE),
+        g_maxdehyd = max(pre_guideline_abx$safdehyd, na.rm = TRUE),
+        g_alri = max(pre_guideline_abx$alri, na.rm = TRUE),
+        g_safcough = max(pre_guideline_abx$safcough, na.rm = TRUE),
+        g_safshb = max(pre_guideline_abx$safshb, na.rm = TRUE),
+        g_fstab = max(episode_info$fstab, na.rm = TRUE),
+        g_duration_pre_abx = nrow(pre_guideline_abx),
+        # Severity before possibly effective abx
+        p_maxb = max(pre_maybe_abx$safblood, na.rm = TRUE),
+        p_fever = max(pre_maybe_abx$saffev, na.rm = TRUE), 
+        p_fever_days = sum(pre_maybe_abx$saffev, na.rm = TRUE),
+        p_maxls = max(pre_maybe_abx$safnumls, na.rm = TRUE),
+        p_sumvom = sum(pre_maybe_abx$safvom, na.rm = TRUE),
+        p_maxdehyd = max(pre_maybe_abx$safdehyd, na.rm = TRUE),
+        p_alri = max(pre_maybe_abx$alri, na.rm = TRUE),
+        p_safcough = max(pre_maybe_abx$safcough, na.rm = TRUE),
+        p_safshb = max(pre_maybe_abx$safshb, na.rm = TRUE),
+        p_fstab = max(episode_info$fstab, na.rm = TRUE),
+        p_duration_pre_abx = nrow(pre_maybe_abx)))
     }
     
   })
   
   severity_df <- do.call(rbind, severity_df)
-  # severity_df[severity_df == -Inf] <- NA
+  
+  # repeat after merging with tac data for episode level (so fall into one category)
+  severity_df$no_abx <- ifelse(severity_df$who_abx == 0 & severity_df$maybe_eff_abx == 0 & severity_df$ineff_abx == 0 ,1, 0)
+  severity_df$ineff_abx <- ifelse(severity_df$ineff_abx == 1 & (severity_df$who_abx == 1 | severity_df$maybe_eff_abx ==1), 0, severity_df$ineff_abx)
+  severity_df$maybe_eff_abx <- ifelse(severity_df$who_abx == 1 & severity_df$maybe_eff_abx == 1, 0, severity_df$maybe_eff_abx)
+  
+  severity_df$all_abx <- factor(severity_df$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+                                                                              "Possibly effective antibiotics",
+                                                                              "Guideline recommended antibiotics"))
   
   tac_data <- cbind(tac_data, severity_df)
-  
-  # Remove 999s (not applicable now with different merge)
-  # tac_data <- tac_data[-which(tac_data$duration_pre_abx == 999),]
-  
-  # If any_abx = 1 and fstab = 0, received abx before episode began
-  # Mark duration_pre_abx = 0
-  tac_data$duration_pre_abx <- ifelse(tac_data$any_abx == 1 & tac_data$fstab == 0, 0, tac_data$duration_pre_abx)
-  
+
   # Get dates of z-score measurements
   zscore_data$date <- strptime(zscore_data$date, format = "%d%b%Y", tz = "UTC")
   
@@ -439,54 +551,6 @@ prep_mal_ed<- function(){
     }
     
     
-    # # get all dates that are prior to episode date
-    # baseline_dates <- sub_zscore$date[sub_zscore$date <= x$date]
-    # 
-    # # get baseline date closest to episode date and corresponding HAZ
-    # # also add zwfl (weight for length zscore) or whz, use whz default
-    # # zwei (weight for age zscore)
-    # # weight
-    # # length
-    # if (length(baseline_dates) > 0) {
-    #   baseline_date <- baseline_dates[which.min(abs(baseline_dates - x$date))]
-    #   baseline_haz <- sub_zscore$haz[sub_zscore$date == baseline_date] #check-- looks like zlen (derived within tac codebook) == baseline_date so yay
-    #   
-    #   # NEW for describing tanzania
-    #   baseline_waz <- sub_zscore$zwei[sub_zscore$date == baseline_date]
-    #   baseline_whz <- sub_zscore$whz[sub_zscore$date == baseline_date]
-    #   baseline_weight <- sub_zscore$weight[sub_zscore$date == baseline_date]
-    #   baseline_length <- sub_zscore$length[sub_zscore$date == baseline_date]
-    #   
-    #   # If baseline_haz missing using HAZ, try using zhei, zheiorig
-    #   if(is.na(baseline_haz)){
-    #     baseline_haz <- sub_zscore$zhei[sub_zscore$date == baseline_date]
-    #   }
-    #   if(is.na(baseline_haz)){
-    #     baseline_haz <- sub_zscore$zheiorig[sub_zscore$date == baseline_date]
-    #   }
-    #   
-    #   # if baseline_whz missing using WHZ, try using zwfl, zwflorig
-    #   if(is.na(baseline_whz)){
-    #     baseline_whz <- sub_zscore$zwfl[sub_zscore$date == baseline_date]
-    #   }
-    #   if(is.na(baseline_whz)){
-    #     baseline_whz <- sub_zscore$zwflorig[sub_zscore$date == baseline_date]
-    #   }
-    #   
-    #   # Check to make sure date is within 75 days of baseline measurement
-    #   if(is.na(baseline_date) | abs(x$date - baseline_date) > 75){
-    #     baseline_date <- NA
-    #     baseline_haz <- NA
-    #   }
-    #   
-    #   # QUESTION if baseline HAZ missing in measurement closest to episode but there's another one within 75 day window that is present,
-    #   # should i use that?
-    #   
-    # } else {
-    #   baseline_date <- NA
-    #   baseline_haz <- NA  # No baseline date found
-    # }
-    
     # get month3 date closest to 90 days post episode and corresponding HAZ
     target_month3_date <- x$date + days(90)
     sub_zscore <- sub_zscore[sub_zscore$date > baseline_date,]
@@ -534,22 +598,36 @@ prep_mal_ed<- function(){
   baseline_and_month3_df <- do.call(rbind, baseline_and_month3_df) 
   final_df <- cbind(tac_data, baseline_and_month3_df)
   
-  # rename covariates
+  # rename covariates -- duplicate for g (guideline rec) and p (possibly effective)
   final_df <- final_df %>%
     rename(
       "episode_date" = date,
-      "dysentery" = maxb,
-      "lsstools" = maxls,
-      "dehyd" = maxdehyd,
-      "daysvomit" = sumvom,
-      "cough" = safcough,
-      "shortbreath" = safshb)
+      "dysentery_g" = g_maxb,
+      "lsstools_g" = g_maxls,
+      "dehyd_g" = g_maxdehyd,
+      "daysvomit_g" = g_sumvom,
+      "cough_g" = g_safcough,
+      "shortbreath_g" = g_safshb,
+      "fever_g" = g_fever,
+      "fever_days_g" = g_fever_days,
+      "alri_g" = g_alri,
+      "duration_pre_abx_g" = g_duration_pre_abx,
+      "dysentery_p" = p_maxb,
+      "lsstools_p" = p_maxls,
+      "dehyd_p" = p_maxdehyd,
+      "daysvomit_p" = p_sumvom,
+      "cough_p" = p_safcough,
+      "shortbreath_p" = p_safshb,
+      "fever_p" = p_fever,
+      "fever_days_p" = p_fever_days,
+      "alri_p" = p_alri,
+      "duration_pre_abx_p" = p_duration_pre_abx,
+      )
   
   # select covariates from bl data
   maled_bl <- maled_bl %>%
     select(Pid,
            CAFSEX,
-           #mated,
            ageexbfimp, 
            Country_ID,
            incomeabovemed, #note not seeing this in the dictionary
@@ -561,7 +639,6 @@ prep_mal_ed<- function(){
            sanitimp) %>%    # WAMI quintile by site
     rename("pid" = Pid,
            "sex" = CAFSEX,
-           #"mated_bin" = mated,
            "site" = Country_ID,
            "maxagebf" = ageexbfimp,
            "mated_cont" = edimp,
@@ -611,7 +688,8 @@ prep_mal_ed<- function(){
   
   final_df$agemonths <- round(final_df$agedays / 30.44, 1)
   
-  final_df$dehyd <- factor(final_df$dehyd, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
+  final_df$dehyd_g <- factor(final_df$dehyd_g, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
+  final_df$dehyd_p <- factor(final_df$dehyd_p, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
   
   # Get rid of extreme HAZ observations
   final_df$month3_haz <- ifelse(final_df$month3_haz < -6 | final_df$month3_haz > 6, NA, final_df$month3_haz)
@@ -638,13 +716,7 @@ prep_mal_ed<- function(){
                         sub_diarrhea_data[,c("pid", "agedays", "MSD", "initiated_abx_during_episode")], 
                         by = c("pid" = "pid", 
                                "agedays" = "agedays"))
-  
-  # remove people who had antibiotics but it was not during episode
-  # No longer doing this?? 3/20/25
-  # check w/ liz incidabxtrt vs fstab
-  # added fstab, marking duration as 0 but leaving them in
-  # final_df <- final_df[-which(final_df$initiated_abx_during_episode == 0 & (final_df$any_abx == 1 | final_df$who_abx == 1 | final_df$maybe_eff_abx == 1)),]
-  
+
   # Use sample ID as first ID (same convention as case control data)
   final_df <- final_df %>%
     arrange(pid, agedays) %>%
@@ -663,6 +735,12 @@ prep_mal_ed<- function(){
            shigella_attributable,
            shigella_attributable_tac,
            culture_shigella,
+           S_sonnei,
+           S_flexneri,
+           "1a","1b","1d",
+           "2a", "2b", "3a","3b",
+           "4a", "4b", "5a","5b",
+           "6", "7a", "X",
            adenovirus_attributable,
            aeromonas_attributable,
            astro_attributable,
@@ -724,16 +802,29 @@ prep_mal_ed<- function(){
            ineff_abx,
            no_abx,
            all_abx,
-           duration_pre_abx,
-           dysentery,
-           fever,
-           fever_days,
-           dehyd,
-           lsstools,
-           daysvomit,
-           cough,
-           shortbreath,
-           alri,
+           
+           duration_pre_abx_p,
+           dysentery_p,
+           fever_p,
+           fever_days_p,
+           dehyd_p,
+           lsstools_p,
+           daysvomit_p,
+           cough_p,
+           shortbreath_p,
+           alri_p,
+           
+           duration_pre_abx_g,
+           dysentery_g,
+           fever_g,
+           fever_days_g,
+           dehyd_g,
+           lsstools_g,
+           daysvomit_g,
+           cough_g,
+           shortbreath_g,
+           alri_g,
+           
            income,
            incomeabovemed,
            mated_cont,
@@ -774,6 +865,8 @@ prep_mal_ed<- function(){
                         shigella_attributable = "Shigella attributable (AFE > 0.5 or culture)",
                         shigella_attributable_tac = "Shigella attributable (AFE > 0.5)",
                         culture_shigella = "Culture Shigella positive",
+                        S_sonnei = "S. sonnei",
+                        S_flexneri = "S. flexneri  (1a, 1b, 1d, 2a, 2b, 3a, 3b, 4a, 4b, 5a, 5b, 6, 7a, X)",
                         any_abx = "Received any antibiotics",
                         who_abx = "Received WHO approved antibiotics",
                         maybe_eff_abx = "Recieved maybe effective antibiotics", 
@@ -784,15 +877,29 @@ prep_mal_ed<- function(){
                         baseline_date = "Date of baseline HAZ measurement",
                         month3_haz = "HAZ at three months (after & closest to 90 days post-episode)",
                         month3_date = "Date of month three HAZ measurement",
-                        dysentery = "Dysentery",
-                        lsstools = "Max number of loose stools during episode",
-                        dehyd = "Maximum severity of dehydration during diarrhea episode",
-                        fever = "Reported fever during episode",
-                        fever_days = "Days reported fever during episode",
-                        daysvomit = "Days vommitted during episode",
-                        cough = "Maternal report of cough",
-                        shortbreath = "Maternal report of shortness of breath",
-                        alri = "ALRI definition met",
+                        
+                        duration_pre_abx_g = "Duration of episode prior to guideline recommended antibiotics",
+                        dysentery_g = "Dysentery (pre-guideline rec abx)",
+                        lsstools_g = "Max number of loose stools during episode (pre-guideline rec abx)",
+                        dehyd_g = "Maximum severity of dehydration during diarrhea episode (pre-guideline rec abx)",
+                        fever_g = "Reported fever during episode (pre-guideline rec abx)",
+                        fever_days_g = "Days reported fever during episode (pre-guideline rec abx)",
+                        daysvomit_g = "Days vommitted during episode (pre-guideline rec abx)",
+                        cough_g = "Maternal report of cough (pre-guideline rec abx)",
+                        shortbreath_g = "Maternal report of shortness of breath (pre-guideline rec abx)",
+                        alri_g = "ALRI definition met (pre-guideline rec abx)",
+                        
+                        duration_pre_abx_p = "Duration of episode prior to possibly effective or guideline recommended antibiotics",
+                        dysentery_p = "Dysentery (pre-possibly effective or guideline rec abx)",
+                        lsstools_p = "Max number of loose stools during episode (pre-possibly effective or guideline rec abx)",
+                        dehyd_p = "Maximum severity of dehydration during diarrhea episode (pre-possibly effective or guideline rec abx)",
+                        fever_p = "Reported fever during episode (pre-possibly effective or guideline rec abx)",
+                        fever_days_p = "Days reported fever during episode (pre-possibly effective or guideline rec abx)",
+                        daysvomit_p = "Days vommitted during episode (pre-possibly effective or guideline rec abx)",
+                        cough_p = "Maternal report of cough (pre-possibly effective or guideline rec abx)",
+                        shortbreath_p = "Maternal report of shortness of breath (pre-possibly effective or guideline rec abx)",
+                        alri_p = "ALRI definition met (pre-possibly effective or guideline rec abx)",
+                        
                         rotavirus_attributable = "Rotavirus attributable (AFE > 0.5)",
                         crypto_attributable = "Cryptosporidium attributable (AFE > 0.5)",
                         adenovirus_attributable = "Adenovirus attributable (AFE > 0.5)",
@@ -875,6 +982,49 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   diarrhea_data <- read.csv(here::here("data/maled_data/raw_data/diarrhea.csv"))
   maled_full <- read.csv(here::here("data/maled_data/raw_data/maled_full.csv"))
   
+  # serotyping data (called shig_tac)
+  load(here::here("data/maled_data/raw_data/Shigella serotypes with microtac 2026.RData"))
+  shig_tac <- shig_tac %>%
+    # deduplicate SID (there are only two samples this applies to )
+    select(SID, ipaH,`Shigella serotyping`,
+           "1a","1b","1d",
+           "2a", "2b", "3a","3b",
+           "4a", "4b", "5a","5b",
+           "6", "7a","S. sonnei", "X") %>%
+    group_by(SID) %>%
+    arrange(
+      desc(
+        rowSums(
+          !is.na(across(c(
+            "1a", "1b", "1d",
+            "2a", "2b", "3a", "3b",
+            "4a", "4b", "5a", "5b",
+            "6", "7a", "S. sonnei", "X"
+          )))
+        )
+      ),
+      .by_group = TRUE
+    ) %>%
+    slice(1) %>%
+    ungroup() %>%
+    mutate(
+      `S_flexneri` = as.integer(
+        if_any(
+          c("1a","1b","1d",
+            "2a","2b","3a","3b",
+            "4a","4b","5a","5b",
+            "6","7a","X"),
+          ~ .x == 1
+        )
+      )) %>%
+    rename('sid' = SID,
+           'S_sonnei' = `S. sonnei`)
+  
+  # Merge with tac_data
+  tac_data <- left_join(
+    tac_data, shig_tac, by = 'sid'
+  )
+  
   # for culture data
   micro_data <- read.csv(here::here("data/maled_data/raw_data/micro_x.csv"))
   
@@ -897,9 +1047,9 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   maled_full$all_abx <- ifelse(maled_full$no_abx == 1 | maled_full$ineff_abx == 1, 0,
                                ifelse(maled_full$maybe_eff_abx == 1, 1, 2))
   
-  maled_full$all_abx <- factor(maled_full$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
-                                                                            "Possibly effective antibiotics",
-                                                                            "Guideline recommended antibiotics"))
+  # maled_full$all_abx <- factor(maled_full$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+  #                                                                           "Possibly effective antibiotics",
+  #                                                                           "Guideline recommended antibiotics"))
   
   maled_full$any_abx <- ifelse(maled_full$safpenicillin == 1 |
                                  maled_full$safcephalo == 1 | 
@@ -1178,27 +1328,28 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   
   
   # Get initial abx treatment variables
-  all_tac_cc$any_abx <- all_tac_cc$abxtrt 
-  all_tac_cc$who_abx <- ifelse(all_tac_cc$macrotrt == 1 | all_tac_cc$fluorotrt == 1, 1, 0)
-  
-  all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$cephalotrt == 1 | all_tac_cc$sulfontrt == 1 | all_tac_cc$tetratrt == 1 | 
-                                       all_tac_cc$othertrt == 1, 1, 0)
-  
-  all_tac_cc$ineff_abx <- ifelse(all_tac_cc$peniciltrt == 1 |
-                                   all_tac_cc$metrontrt == 1 |
-                                   all_tac_cc$unknowtrt == 1, 1, 0)
-  
-  all_tac_cc$no_abx <- ifelse(all_tac_cc$who_abx == 0 & all_tac_cc$maybe_eff_abx == 0 & all_tac_cc$ineff_abx == 0, 1, 0)
-  
-  all_tac_cc$ineff_abx <- ifelse(all_tac_cc$ineff_abx == 1 & (all_tac_cc$who_abx == 1 | all_tac_cc$maybe_eff_abx == 1), 0, all_tac_cc$ineff_abx)
-  all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$maybe_eff_abx == 1 & all_tac_cc$who_abx == 1, 0, all_tac_cc$maybe_eff_abx)
-  
-  all_tac_cc$all_abx <- ifelse(all_tac_cc$no_abx == 1 | all_tac_cc$ineff_abx == 1, 0,
-                               ifelse(all_tac_cc$maybe_eff_abx == 1, 1, 2))
-  
-  all_tac_cc$all_abx <- factor(all_tac_cc$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
-                                                                            "Possibly effective antibiotics",
-                                                                            "Guideline recommended antibiotics"))
+  # NOW USING SAF VARIABLES
+  # all_tac_cc$any_abx <- all_tac_cc$abxtrt 
+  # all_tac_cc$who_abx <- ifelse(all_tac_cc$macrotrt == 1 | all_tac_cc$fluorotrt == 1, 1, 0)
+  # 
+  # all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$cephalotrt == 1 | all_tac_cc$sulfontrt == 1 | all_tac_cc$tetratrt == 1 | 
+  #                                      all_tac_cc$othertrt == 1, 1, 0)
+  # 
+  # all_tac_cc$ineff_abx <- ifelse(all_tac_cc$peniciltrt == 1 |
+  #                                  all_tac_cc$metrontrt == 1 |
+  #                                  all_tac_cc$unknowtrt == 1, 1, 0)
+  # 
+  # all_tac_cc$no_abx <- ifelse(all_tac_cc$who_abx == 0 & all_tac_cc$maybe_eff_abx == 0 & all_tac_cc$ineff_abx == 0, 1, 0)
+  # 
+  # all_tac_cc$ineff_abx <- ifelse(all_tac_cc$ineff_abx == 1 & (all_tac_cc$who_abx == 1 | all_tac_cc$maybe_eff_abx == 1), 0, all_tac_cc$ineff_abx)
+  # all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$maybe_eff_abx == 1 & all_tac_cc$who_abx == 1, 0, all_tac_cc$maybe_eff_abx)
+  # 
+  # all_tac_cc$all_abx <- ifelse(all_tac_cc$no_abx == 1 | all_tac_cc$ineff_abx == 1, 0,
+  #                              ifelse(all_tac_cc$maybe_eff_abx == 1, 1, 2))
+  # 
+  # all_tac_cc$all_abx <- factor(all_tac_cc$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+  #                                                                           "Possibly effective antibiotics",
+  #                                                                           "Guideline recommended antibiotics"))
   
   # Drop controls with abx 0-15 days before sample (healthy controls only)
   # all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 0 & all_tac_cc$abx15 == 1),]
@@ -1216,6 +1367,12 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            shigella_attributable,
            tac_shigella_attributable,
            culture_shigella,
+           S_sonnei,
+           S_flexneri,
+           "1a","1b","1d",
+           "2a", "2b", "3a","3b",
+           "4a", "4b", "5a","5b",
+           "6", "7a", "X",
            adenovirus_attributable,
            aeromonas_attributable,
            astro_attributable,
@@ -1281,12 +1438,12 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            e_bieneusi,
            giardia,
            EAEC,
-           any_abx,
-           who_abx,
-           maybe_eff_abx, 
-           ineff_abx,
-           no_abx,
-           all_abx,
+           # any_abx,
+           # who_abx,
+           # maybe_eff_abx, 
+           # ineff_abx,
+           # no_abx,
+           # all_abx,
            prop_ebf30) %>%
     rename("tac_rotavirus" = rotavirus,
            "tac_adenovirus" = adenovirus_40_41,
@@ -1312,6 +1469,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
                                          maled_full$Pid == row$pid),]
       
       if(nrow(episode_info) == 0){
+        stop("no matching episode info")
         return(data.frame(maxb = NA,
                           fever = NA,
                           fever_days = NA,
@@ -1326,42 +1484,102 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
       }
       
       # If no antibiotics, return overall info
-      if(sum(episode_info$who_abx) == 0 & sum(episode_info$any_abx) == 0 & sum(episode_info$maybe_eff_abx) == 0){
-        return(data.frame(maxb = episode_info$maxb[1],
-                          fever = episode_info$fever[1],
-                          fever_days = sum(episode_info$saffev, na.rm = TRUE),
-                          maxls = episode_info$maxls[1],
-                          sumvom = episode_info$sumvom[1],
-                          maxdehyd = episode_info$maxdehyd[1],
-                          alri = max(episode_info$alri),
-                          safcough = max(episode_info$safcough),
-                          safshb = max(episode_info$safshb),
-                          fstab = max(episode_info$fstab),
-                          duration_pre_abx = nrow(episode_info))) # returning length of episode 
+      if(sum(episode_info$any_abx) == 0){
+        return(data.frame(# Return abx info for whole episode
+          # these should all be 0, but copied logic for ease
+          who_abx = max(episode_info$who_abx), 
+          maybe_eff_abx = max(episode_info$maybe_eff_abx),
+          ineff_abx = max(episode_info$ineff_abx),
+          no_abx = max(episode_info$no_abx),
+          any_abx = max(episode_info$any_abx),
+          all_abx = max(episode_info$all_abx),
+          # Severity before guideline recommended abx
+          g_maxb = episode_info$maxb[1],
+          g_fever = episode_info$fever[1],
+          g_fever_days = sum(episode_info$saffev, na.rm = TRUE),
+          g_maxls = episode_info$maxls[1],
+          g_sumvom = episode_info$sumvom[1],
+          g_maxdehyd = episode_info$maxdehyd[1],
+          g_alri = max(episode_info$alri),
+          g_safcough = max(episode_info$safcough),
+          g_safshb = max(episode_info$safshb),
+          g_fstab = max(episode_info$fstab),
+          g_duration_pre_abx = nrow(episode_info),
+          # Severity before possibly effective abx
+          p_maxb = episode_info$maxb[1],
+          p_fever = episode_info$fever[1],
+          p_fever_days = sum(episode_info$saffev, na.rm = TRUE),
+          p_maxls = episode_info$maxls[1],
+          p_sumvom = episode_info$sumvom[1],
+          p_maxdehyd = episode_info$maxdehyd[1],
+          p_alri = max(episode_info$alri),
+          p_safcough = max(episode_info$safcough),
+          p_safshb = max(episode_info$safshb),
+          p_fstab = max(episode_info$fstab),
+          p_duration_pre_abx = nrow(episode_info)) # returning length of episode 
+        )
       } else{
         
-        # would like to specify for type coded in tac_data, for example if someone
-        # gets ineffective abx then WHO abx later in episode, count prior to WHO abx
-        # (added & all_abx == row$all_abx)
-        # but there are some instances where safmacrolide (daily macrolide var) == 0 for whole episode 
-        # even though macrotrt (episode treated with macrolides) == 1
-        # so leaving as min(age[any_abx == 1]) for now
+        # duration of episode prior to and including day they got antibiotics 
         
-        pre_abx <- episode_info %>%
-          mutate(first_abx = min(age[any_abx == 1])) %>% # & all_abx == row$all_abx])) %>%
-          filter(age <= first_abx)
+        # guideline only -- if received possibly or ineffective, still use whole episode
+        pre_guideline_abx <- episode_info %>%
+          mutate(
+            first_abx = if (any(who_abx %in% 1 & !is.na(age))) {
+              min(age[who_abx %in% 1 & !is.na(age)])
+            } else {
+              NA_real_
+            }
+          ) %>% 
+          filter(is.na(first_abx) | age <= first_abx)
         
-        return(data.frame(maxb = max(pre_abx$safblood, na.rm = TRUE),
-                          fever = max(pre_abx$saffev, na.rm = TRUE), 
-                          fever_days = sum(pre_abx$saffev, na.rm = TRUE),
-                          maxls = max(pre_abx$safnumls, na.rm = TRUE),
-                          sumvom = sum(pre_abx$safvom, na.rm = TRUE),
-                          maxdehyd = max(pre_abx$safdehyd, na.rm = TRUE),
-                          alri = max(pre_abx$alri, na.rm = TRUE),
-                          safcough = max(pre_abx$safcough, na.rm = TRUE),
-                          safshb = max(pre_abx$safshb, na.rm = TRUE),
-                          fstab = max(episode_info$fstab, na.rm = TRUE),
-                          duration_pre_abx = nrow(pre_abx)))
+        # possibly effective -- if received possibly effective and/or guideline, use the earlier of the two
+        pre_maybe_abx <- episode_info %>%
+          mutate(
+            abx_flag = who_abx %in% 1 | maybe_eff_abx %in% 1,
+            first_abx = if (any(abx_flag & !is.na(age))) {
+              min(age[abx_flag & !is.na(age)])
+            } else {
+              NA_real_
+            }
+          ) %>% 
+          filter(is.na(first_abx) | age <= first_abx) %>%
+          select(-abx_flag)
+        
+        
+        # duration of episode prior to and including day they got antibiotics = nrow(pre_abx)
+        # if they were taking abx on day 1, == 1
+        return(data.frame(# Return abx info for whole episode
+          who_abx = max(episode_info$who_abx), 
+          maybe_eff_abx = max(episode_info$maybe_eff_abx),
+          ineff_abx = max(episode_info$ineff_abx),
+          no_abx = max(episode_info$no_abx),
+          any_abx = max(episode_info$any_abx),
+          all_abx = max(episode_info$all_abx),
+          # Severity before guideline recommended abx
+          g_maxb = max(pre_guideline_abx$safblood, na.rm = TRUE),
+          g_fever = max(pre_guideline_abx$saffev, na.rm = TRUE), 
+          g_fever_days = sum(pre_guideline_abx$saffev, na.rm = TRUE),
+          g_maxls = max(pre_guideline_abx$safnumls, na.rm = TRUE),
+          g_sumvom = sum(pre_guideline_abx$safvom, na.rm = TRUE),
+          g_maxdehyd = max(pre_guideline_abx$safdehyd, na.rm = TRUE),
+          g_alri = max(pre_guideline_abx$alri, na.rm = TRUE),
+          g_safcough = max(pre_guideline_abx$safcough, na.rm = TRUE),
+          g_safshb = max(pre_guideline_abx$safshb, na.rm = TRUE),
+          g_fstab = max(episode_info$fstab, na.rm = TRUE),
+          g_duration_pre_abx = nrow(pre_guideline_abx),
+          # Severity before possibly effective abx
+          p_maxb = max(pre_maybe_abx$safblood, na.rm = TRUE),
+          p_fever = max(pre_maybe_abx$saffev, na.rm = TRUE), 
+          p_fever_days = sum(pre_maybe_abx$saffev, na.rm = TRUE),
+          p_maxls = max(pre_maybe_abx$safnumls, na.rm = TRUE),
+          p_sumvom = sum(pre_maybe_abx$safvom, na.rm = TRUE),
+          p_maxdehyd = max(pre_maybe_abx$safdehyd, na.rm = TRUE),
+          p_alri = max(pre_maybe_abx$alri, na.rm = TRUE),
+          p_safcough = max(pre_maybe_abx$safcough, na.rm = TRUE),
+          p_safshb = max(pre_maybe_abx$safshb, na.rm = TRUE),
+          p_fstab = max(episode_info$fstab, na.rm = TRUE),
+          p_duration_pre_abx = nrow(pre_maybe_abx)))
       }
     } else{
       # CONTROL
@@ -1373,30 +1591,70 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
       # nrow(full_row) == 0 if no entry in longitudinal data for that day
       if((nrow(full_row) == 0) || full_row$any_abx == 1) {
         # 999 to indicate drop row
-        return(data.frame(maxb = 999,
-                          fever = 999, 
-                          fever_days = 999,
-                          maxls = 999,
-                          sumvom = 999,
-                          maxdehyd = 999,
-                          alri = 999,
-                          safcough =999,
-                          safshb = 999,
-                          fstab = 999,
-                          duration_pre_abx = 999))
+        return(data.frame(# Return abx info for whole episode
+          who_abx = 999,
+          maybe_eff_abx = 999, 
+          ineff_abx = 999,
+          no_abx = 999,
+          any_abx = 999,
+          all_abx = 999,
+          # Severity before guideline
+          g_maxb = 999,
+          g_fever = 999,
+          g_fever_days = 999,
+          g_maxls = 999,
+          g_sumvom = 999,
+          g_maxdehyd = 999,
+          g_alri = 999,
+          g_safcough = 999,
+          g_safshb = 999,
+          g_fstab = 999,
+          g_duration_pre_abx = 999,
+          # Severity before possibly
+          p_maxb = 999,
+          p_fever = 999,
+          p_fever_days = 999,
+          p_maxls = 999,
+          p_sumvom = 999,
+          p_maxdehyd = 999,
+          p_alri = 999,
+          p_safcough = 999,
+          p_safshb = 999,
+          p_fstab = 999,
+          p_duration_pre_abx = 999))
       } else {
         # NA because not adjusting for severity in controls
-        return(data.frame(maxb = NA,
-                          fever = NA, 
-                          fever_days = NA,
-                          maxls = NA,
-                          sumvom = NA,
-                          maxdehyd = NA,
-                          alri = NA,
-                          safcough =NA,
-                          safshb = NA,
-                          fstab = NA,
-                          duration_pre_abx = NA))
+        return(return(data.frame(# Return abx info for whole episode
+          who_abx = NA,
+          maybe_eff_abx = NA, 
+          ineff_abx = NA,
+          no_abx = NA,
+          any_abx = NA,
+          all_abx = NA,
+          # Severity before guideline
+          g_maxb = NA,
+          g_fever = NA,
+          g_fever_days = NA,
+          g_maxls = NA,
+          g_sumvom = NA,
+          g_maxdehyd = NA,
+          g_alri = NA,
+          g_safcough = NA,
+          g_safshb = NA,
+          g_fstab = NA,
+          g_duration_pre_abx = NA,
+          # Severity before possibly
+          p_maxb = NA,
+          p_fever = NA,
+          p_fever_days = NA,
+          p_maxls = NA,
+          p_sumvom = NA,
+          p_maxdehyd = NA,
+          p_alri = NA,
+          p_safcough = NA,
+          p_safshb = NA,
+          p_fstab = NA,
+          p_duration_pre_abx = NA)))
       }
       
       
@@ -1406,17 +1664,19 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   severity_df <- lapply(1:nrow(all_tac_cc), severity_pre_abx)
   severity_df <- do.call(rbind, severity_df)
   
+  # repeat after merging with tac data for episode level (so fall into one category)
+  severity_df$no_abx <- ifelse(severity_df$who_abx == 0 & severity_df$maybe_eff_abx == 0 & severity_df$ineff_abx == 0 ,1, 0)
+  severity_df$ineff_abx <- ifelse(severity_df$ineff_abx == 1 & (severity_df$who_abx == 1 | severity_df$maybe_eff_abx ==1), 0, severity_df$ineff_abx)
+  severity_df$maybe_eff_abx <- ifelse(severity_df$who_abx == 1 & severity_df$maybe_eff_abx == 1, 0, severity_df$maybe_eff_abx)
+  
+  severity_df$all_abx <- factor(severity_df$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+                                                                              "Possibly effective antibiotics",
+                                                                              "Guideline recommended antibiotics"))
+  
   all_tac_cc <- cbind(all_tac_cc, severity_df)
   
   # Drop any controls taking abx on day of sample (indicated by 999 in severity cols)
-  all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 0 & all_tac_cc$maxb == 999),]
-  
-  # drop diarrhea episodes coded with 999 in duration (not applicable now that switched severity merge)
-  # all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 1 & all_tac_cc$duration_pre_abx == 999),]
-  
-  # If any_abx = 1 and fstab = 0, received abx before episode began
-  # Mark duration_pre_abx = 0
-  all_tac_cc$duration_pre_abx <- ifelse(all_tac_cc$any_abx == 1 & all_tac_cc$fstab == 0, 0, all_tac_cc$duration_pre_abx)
+  all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 0 & all_tac_cc$g_maxb == 999),]
   
   # Get dates of z-score measurements
   zscore_data$date <- strptime(zscore_data$date, format = "%d%b%Y", tz = "UTC")
@@ -1535,7 +1795,6 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
     
   }, zscore_data = zscore_data, tac_data = all_tac_cc)
   
-  
   baseline_and_month3_df <- do.call(rbind, baseline_and_month3_df) 
   final_df <- cbind(all_tac_cc, baseline_and_month3_df)
   
@@ -1543,12 +1802,27 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   final_df <- final_df %>%
     rename(
       "episode_date" = date,
-      "dysentery" = maxb,
-      "lsstools" = maxls,
-      "dehyd" = maxdehyd,
-      "daysvomit" = sumvom,
-      "cough" = safcough,
-      "shortbreath" = safshb)
+      "dysentery_g" = g_maxb,
+      "lsstools_g" = g_maxls,
+      "dehyd_g" = g_maxdehyd,
+      "daysvomit_g" = g_sumvom,
+      "cough_g" = g_safcough,
+      "shortbreath_g" = g_safshb,
+      "fever_g" = g_fever,
+      "fever_days_g" = g_fever_days,
+      "alri_g" = g_alri,
+      "duration_pre_abx_g" = g_duration_pre_abx,
+      "dysentery_p" = p_maxb,
+      "lsstools_p" = p_maxls,
+      "dehyd_p" = p_maxdehyd,
+      "daysvomit_p" = p_sumvom,
+      "cough_p" = p_safcough,
+      "shortbreath_p" = p_safshb,
+      "fever_p" = p_fever,
+      "fever_days_p" = p_fever_days,
+      "alri_p" = p_alri,
+      "duration_pre_abx_p" = p_duration_pre_abx,
+    )
   
   # select covariates from bl data
   maled_bl <- maled_bl %>%
@@ -1616,7 +1890,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   
   final_df$agemonths <- round(final_df$agedays / 30.44, 1)
   
-  final_df$dehyd <- factor(final_df$dehyd, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
+  final_df$dehyd_g <- factor(final_df$dehyd_g, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
+  final_df$dehyd_p <- factor(final_df$dehyd_p, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
   
   # Get rid of extreme HAZ observations
   final_df$month3_haz <- ifelse(final_df$month3_haz < -6 | final_df$month3_haz > 6, NA, final_df$month3_haz)
@@ -1653,6 +1928,12 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            shigella_attributable,
            tac_shigella_attributable,
            culture_shigella,
+           S_sonnei,
+           S_flexneri,
+           "1a","1b","1d",
+           "2a", "2b", "3a","3b",
+           "4a", "4b", "5a","5b",
+           "6", "7a", "X",
            adenovirus_attributable,
            aeromonas_attributable,
            astro_attributable,
@@ -1724,16 +2005,28 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            ineff_abx,
            no_abx,
            all_abx,
-           duration_pre_abx,
-           dysentery,
-           fever,
-           fever_days,
-           dehyd,
-           lsstools,
-           daysvomit,
-           cough,
-           shortbreath,
-           alri,
+           duration_pre_abx_p,
+           dysentery_p,
+           fever_p,
+           fever_days_p,
+           dehyd_p,
+           lsstools_p,
+           daysvomit_p,
+           cough_p,
+           shortbreath_p,
+           alri_p,
+           
+           duration_pre_abx_g,
+           dysentery_g,
+           fever_g,
+           fever_days_g,
+           dehyd_g,
+           lsstools_g,
+           daysvomit_g,
+           cough_g,
+           shortbreath_g,
+           alri_g,
+           
            income,
            incomeabovemed,
            mated_cont,
@@ -1784,15 +2077,29 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
                         baseline_date = "Date of baseline HAZ measurement",
                         month3_haz = "HAZ at three months (after & closest to 90 days post-episode)",
                         month3_date = "Date of month three HAZ measurement",
-                        dysentery = "Dysentery",
-                        lsstools = "Max number of loose stools during episode",
-                        dehyd = "Maximum severity of dehydration during diarrhea episode",
-                        fever = "Reported fever during episode",
-                        fever_days = "Days reported fever during episode",
-                        daysvomit = "Days vommitted during episode",
-                        cough = "Maternal report of cough",
-                        shortbreath = "Maternal report of shortness of breath",
-                        alri = "ALRI definition met",
+                        duration_pre_abx_g = "Duration of episode prior to guideline recommended antibiotics",
+                        
+                        dysentery_g = "Dysentery (pre-guideline rec abx)",
+                        lsstools_g = "Max number of loose stools during episode (pre-guideline rec abx)",
+                        dehyd_g = "Maximum severity of dehydration during diarrhea episode (pre-guideline rec abx)",
+                        fever_g = "Reported fever during episode (pre-guideline rec abx)",
+                        fever_days_g = "Days reported fever during episode (pre-guideline rec abx)",
+                        daysvomit_g = "Days vommitted during episode (pre-guideline rec abx)",
+                        cough_g = "Maternal report of cough (pre-guideline rec abx)",
+                        shortbreath_g = "Maternal report of shortness of breath (pre-guideline rec abx)",
+                        alri_g = "ALRI definition met (pre-guideline rec abx)",
+                        
+                        duration_pre_abx_p = "Duration of episode prior to possibly effective or guideline recommended antibiotics",
+                        dysentery_p = "Dysentery (pre-possibly effective or guideline rec abx)",
+                        lsstools_p = "Max number of loose stools during episode (pre-possibly effective or guideline rec abx)",
+                        dehyd_p = "Maximum severity of dehydration during diarrhea episode (pre-possibly effective or guideline rec abx)",
+                        fever_p = "Reported fever during episode (pre-possibly effective or guideline rec abx)",
+                        fever_days_p = "Days reported fever during episode (pre-possibly effective or guideline rec abx)",
+                        daysvomit_p = "Days vommitted during episode (pre-possibly effective or guideline rec abx)",
+                        cough_p = "Maternal report of cough (pre-possibly effective or guideline rec abx)",
+                        shortbreath_p = "Maternal report of shortness of breath (pre-possibly effective or guideline rec abx)",
+                        alri_p = "ALRI definition met (pre-possibly effective or guideline rec abx)",
+                        
                         rotavirus_attributable = "Rotavirus attributable (AFE > 0.5)",
                         crypto_attributable = "Cryptosporidium attributable (AFE > 0.5)",
                         adenovirus_attributable = "Adenovirus attributable (AFE > 0.5)",
@@ -1902,9 +2209,9 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
   maled_full$all_abx <- ifelse(maled_full$no_abx == 1 | maled_full$ineff_abx == 1, 0,
                                ifelse(maled_full$maybe_eff_abx == 1, 1, 2))
   
-  maled_full$all_abx <- factor(maled_full$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
-                                                                            "Possibly effective antibiotics",
-                                                                            "Guideline recommended antibiotics"))
+  # maled_full$all_abx <- factor(maled_full$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+  #                                                                           "Possibly effective antibiotics",
+  #                                                                           "Guideline recommended antibiotics"))
   
   maled_full$any_abx <- ifelse(maled_full$safpenicillin == 1 |
                                  maled_full$safcephalo == 1 | 
@@ -2183,27 +2490,28 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
   
   
   # Get initial abx treatment variables
-  all_tac_cc$any_abx <- all_tac_cc$abxtrt 
-  all_tac_cc$who_abx <- ifelse(all_tac_cc$macrotrt == 1 | all_tac_cc$fluorotrt == 1, 1, 0)
-  
-  all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$cephalotrt == 1 | all_tac_cc$sulfontrt == 1 | all_tac_cc$tetratrt == 1 | 
-                                       all_tac_cc$othertrt == 1, 1, 0)
-  
-  all_tac_cc$ineff_abx <- ifelse(all_tac_cc$peniciltrt == 1 |
-                                   all_tac_cc$metrontrt == 1 |
-                                   all_tac_cc$unknowtrt == 1, 1, 0)
-  
-  all_tac_cc$no_abx <- ifelse(all_tac_cc$who_abx == 0 & all_tac_cc$maybe_eff_abx == 0 & all_tac_cc$ineff_abx == 0, 1, 0)
-  
-  all_tac_cc$ineff_abx <- ifelse(all_tac_cc$ineff_abx == 1 & (all_tac_cc$who_abx == 1 | all_tac_cc$maybe_eff_abx == 1), 0, all_tac_cc$ineff_abx)
-  all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$maybe_eff_abx == 1 & all_tac_cc$who_abx == 1, 0, all_tac_cc$maybe_eff_abx)
-  
-  all_tac_cc$all_abx <- ifelse(all_tac_cc$no_abx == 1 | all_tac_cc$ineff_abx == 1, 0,
-                               ifelse(all_tac_cc$maybe_eff_abx == 1, 1, 2))
-  
-  all_tac_cc$all_abx <- factor(all_tac_cc$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
-                                                                            "Possibly effective antibiotics",
-                                                                            "Guideline recommended antibiotics"))
+  # NOW RECREATING FROM SAF VARIABLES
+  # all_tac_cc$any_abx <- all_tac_cc$abxtrt 
+  # all_tac_cc$who_abx <- ifelse(all_tac_cc$macrotrt == 1 | all_tac_cc$fluorotrt == 1, 1, 0)
+  # 
+  # all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$cephalotrt == 1 | all_tac_cc$sulfontrt == 1 | all_tac_cc$tetratrt == 1 | 
+  #                                      all_tac_cc$othertrt == 1, 1, 0)
+  # 
+  # all_tac_cc$ineff_abx <- ifelse(all_tac_cc$peniciltrt == 1 |
+  #                                  all_tac_cc$metrontrt == 1 |
+  #                                  all_tac_cc$unknowtrt == 1, 1, 0)
+  # 
+  # all_tac_cc$no_abx <- ifelse(all_tac_cc$who_abx == 0 & all_tac_cc$maybe_eff_abx == 0 & all_tac_cc$ineff_abx == 0, 1, 0)
+  # 
+  # all_tac_cc$ineff_abx <- ifelse(all_tac_cc$ineff_abx == 1 & (all_tac_cc$who_abx == 1 | all_tac_cc$maybe_eff_abx == 1), 0, all_tac_cc$ineff_abx)
+  # all_tac_cc$maybe_eff_abx <- ifelse(all_tac_cc$maybe_eff_abx == 1 & all_tac_cc$who_abx == 1, 0, all_tac_cc$maybe_eff_abx)
+  # 
+  # all_tac_cc$all_abx <- ifelse(all_tac_cc$no_abx == 1 | all_tac_cc$ineff_abx == 1, 0,
+  #                              ifelse(all_tac_cc$maybe_eff_abx == 1, 1, 2))
+  # 
+  # all_tac_cc$all_abx <- factor(all_tac_cc$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+  #                                                                           "Possibly effective antibiotics",
+  #                                                                           "Guideline recommended antibiotics"))
   
   # Drop controls with abx 0-15 days before sample (healthy controls only)
   # all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 0 & all_tac_cc$abx15 == 1),]
@@ -2286,12 +2594,12 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
            e_bieneusi,
            giardia,
            EAEC,
-           any_abx,
-           who_abx,
-           maybe_eff_abx, 
-           ineff_abx,
-           no_abx,
-           all_abx,
+           # any_abx,
+           # who_abx,
+           # maybe_eff_abx, 
+           # ineff_abx,
+           # no_abx,
+           # all_abx,
            prop_ebf30) %>%
     rename("tac_rotavirus" = rotavirus,
            "tac_adenovirus" = adenovirus_40_41,
@@ -2317,112 +2625,249 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
                                          maled_full$Pid == row$pid),]
       
       if(nrow(episode_info) == 0){
-        return(data.frame(maxb = NA,
-                          fever = NA,
-                          fever_days = NA,
-                          maxls = NA,
-                          sumvom = NA,
-                          maxdehyd = NA,
-                          alri = NA,
-                          safcough = NA,
-                          safshb = NA,
-                          fstab = NA,
-                          duration_pre_abx = 999)) # flag to remove row
+        stop("no matching episode info")
+        return(data.frame(
+          who_abx = NA,
+          maybe_eff_abx = NA,
+          ineff_abx = NA,
+          no_abx = NA,
+          any_abx = NA,
+          all_abx = NA,
+          g_maxb = NA,
+          g_fever = NA,
+          g_fever_days = NA,
+          g_maxls = NA,
+          g_sumvom = NA,
+          g_maxdehyd = NA,
+          g_alri = NA,
+          g_safcough = NA,
+          g_safshb = NA,
+          g_fstab = NA,
+          g_duration_pre_abx = 999,
+          p_maxb = NA,
+          p_fever = NA,
+          p_fever_days = NA,
+          p_maxls = NA,
+          p_sumvom = NA,
+          p_maxdehyd = NA,
+          p_alri = NA,
+          p_safcough = NA,
+          p_safshb = NA,
+          p_fstab = NA,
+          p_duration_pre_abx = 999
+        ))
       }
       
-      # If no antibiotics, return overall info
-      if(sum(episode_info$who_abx) == 0 & sum(episode_info$any_abx) == 0 & sum(episode_info$maybe_eff_abx) == 0){
-        return(data.frame(maxb = episode_info$maxb[1],
-                          fever = episode_info$fever[1],
-                          fever_days = sum(episode_info$saffev, na.rm = TRUE),
-                          maxls = episode_info$maxls[1],
-                          sumvom = episode_info$sumvom[1],
-                          maxdehyd = episode_info$maxdehyd[1],
-                          alri = max(episode_info$alri),
-                          safcough = max(episode_info$safcough),
-                          safshb = max(episode_info$safshb),
-                          fstab = max(episode_info$fstab),
-                          duration_pre_abx = nrow(episode_info))) # returning length of episode 
+      # If no antibiotics, return overall episode info for both versions
+      if(sum(episode_info$any_abx) == 0){
+        return(data.frame(
+          # Return abx info for whole episode
+          who_abx = max(episode_info$who_abx), 
+          maybe_eff_abx = max(episode_info$maybe_eff_abx),
+          ineff_abx = max(episode_info$ineff_abx),
+          no_abx = max(episode_info$no_abx),
+          any_abx = max(episode_info$any_abx),
+          all_abx = max(episode_info$all_abx),
+          
+          # Severity before guideline recommended abx
+          g_maxb = episode_info$maxb[1],
+          g_fever = episode_info$fever[1],
+          g_fever_days = sum(episode_info$saffev, na.rm = TRUE),
+          g_maxls = episode_info$maxls[1],
+          g_sumvom = episode_info$sumvom[1],
+          g_maxdehyd = episode_info$maxdehyd[1],
+          g_alri = max(episode_info$alri),
+          g_safcough = max(episode_info$safcough),
+          g_safshb = max(episode_info$safshb),
+          g_fstab = max(episode_info$fstab),
+          g_duration_pre_abx = nrow(episode_info),
+          
+          # Severity before possibly effective abx
+          p_maxb = episode_info$maxb[1],
+          p_fever = episode_info$fever[1],
+          p_fever_days = sum(episode_info$saffev, na.rm = TRUE),
+          p_maxls = episode_info$maxls[1],
+          p_sumvom = episode_info$sumvom[1],
+          p_maxdehyd = episode_info$maxdehyd[1],
+          p_alri = max(episode_info$alri),
+          p_safcough = max(episode_info$safcough),
+          p_safshb = max(episode_info$safshb),
+          p_fstab = max(episode_info$fstab),
+          p_duration_pre_abx = nrow(episode_info)
+        ))
       } else{
         
-        # would like to specify for type coded in tac_data, for example if someone
-        # gets ineffective abx then WHO abx later in episode, count prior to WHO abx
-        # (added & all_abx == row$all_abx)
-        # but there are some instances where safmacrolide (daily macrolide var) == 0 for whole episode 
-        # even though macrotrt (episode treated with macrolides) == 1
-        # so leaving as min(age[any_abx == 1]) for now
+        # Guideline only -- if only possibly/ineffective received, use whole episode
+        pre_guideline_abx <- episode_info %>%
+          mutate(
+            first_abx = if (any(who_abx %in% 1 & !is.na(age))) {
+              min(age[who_abx %in% 1 & !is.na(age)])
+            } else {
+              NA_real_
+            }
+          ) %>% 
+          filter(is.na(first_abx) | age <= first_abx)
         
-        pre_abx <- episode_info %>%
-          mutate(first_abx = min(age[any_abx == 1])) %>% # & all_abx == row$all_abx])) %>%
-          filter(age <= first_abx)
+        # Possibly effective -- if received possibly effective and/or guideline, use earlier of the two
+        pre_maybe_abx <- episode_info %>%
+          mutate(
+            abx_flag = who_abx %in% 1 | maybe_eff_abx %in% 1,
+            first_abx = if (any(abx_flag & !is.na(age))) {
+              min(age[abx_flag & !is.na(age)])
+            } else {
+              NA_real_
+            }
+          ) %>% 
+          filter(is.na(first_abx) | age <= first_abx) %>%
+          select(-abx_flag)
         
-        return(data.frame(maxb = max(pre_abx$safblood, na.rm = TRUE),
-                          fever = max(pre_abx$saffev, na.rm = TRUE), 
-                          fever_days = sum(pre_abx$saffev, na.rm = TRUE),
-                          maxls = max(pre_abx$safnumls, na.rm = TRUE),
-                          sumvom = sum(pre_abx$safvom, na.rm = TRUE),
-                          maxdehyd = max(pre_abx$safdehyd, na.rm = TRUE),
-                          alri = max(pre_abx$alri, na.rm = TRUE),
-                          safcough = max(pre_abx$safcough, na.rm = TRUE),
-                          safshb = max(pre_abx$safshb, na.rm = TRUE),
-                          fstab = max(episode_info$fstab, na.rm = TRUE),
-                          duration_pre_abx = nrow(pre_abx)))
+        return(data.frame(
+          # Return abx info for whole episode
+          who_abx = max(episode_info$who_abx), 
+          maybe_eff_abx = max(episode_info$maybe_eff_abx),
+          ineff_abx = max(episode_info$ineff_abx),
+          no_abx = max(episode_info$no_abx),
+          any_abx = max(episode_info$any_abx),
+          all_abx = max(episode_info$all_abx),
+          
+          # Severity before guideline recommended abx
+          g_maxb = max(pre_guideline_abx$safblood, na.rm = TRUE),
+          g_fever = max(pre_guideline_abx$saffev, na.rm = TRUE), 
+          g_fever_days = sum(pre_guideline_abx$saffev, na.rm = TRUE),
+          g_maxls = max(pre_guideline_abx$safnumls, na.rm = TRUE),
+          g_sumvom = sum(pre_guideline_abx$safvom, na.rm = TRUE),
+          g_maxdehyd = max(pre_guideline_abx$safdehyd, na.rm = TRUE),
+          g_alri = max(pre_guideline_abx$alri, na.rm = TRUE),
+          g_safcough = max(pre_guideline_abx$safcough, na.rm = TRUE),
+          g_safshb = max(pre_guideline_abx$safshb, na.rm = TRUE),
+          g_fstab = max(episode_info$fstab, na.rm = TRUE),
+          g_duration_pre_abx = nrow(pre_guideline_abx),
+          
+          # Severity before possibly effective abx
+          p_maxb = max(pre_maybe_abx$safblood, na.rm = TRUE),
+          p_fever = max(pre_maybe_abx$saffev, na.rm = TRUE), 
+          p_fever_days = sum(pre_maybe_abx$saffev, na.rm = TRUE),
+          p_maxls = max(pre_maybe_abx$safnumls, na.rm = TRUE),
+          p_sumvom = sum(pre_maybe_abx$safvom, na.rm = TRUE),
+          p_maxdehyd = max(pre_maybe_abx$safdehyd, na.rm = TRUE),
+          p_alri = max(pre_maybe_abx$alri, na.rm = TRUE),
+          p_safcough = max(pre_maybe_abx$safcough, na.rm = TRUE),
+          p_safshb = max(pre_maybe_abx$safshb, na.rm = TRUE),
+          p_fstab = max(episode_info$fstab, na.rm = TRUE),
+          p_duration_pre_abx = nrow(pre_maybe_abx)
+        ))
       }
     } else{
       # CONTROL
       
-      # check to make sure not taking abx on sample date (could be on abx for something else)
+      # Check to make sure not taking abx on sample date
       full_row <- maled_full[which(maled_full$Pid == row$pid & maled_full$date == row$date),]
       
-      # full_row$any_abx == 1 if any of the saf daily abx vars == 1
-      # nrow(full_row) == 0 if no entry in longitudinal data for that day
       if((nrow(full_row) == 0) || full_row$any_abx == 1) {
-        # 999 to indicate drop row
-        return(data.frame(maxb = 999,
-                          fever = 999, 
-                          fever_days = 999,
-                          maxls = 999,
-                          sumvom = 999,
-                          maxdehyd = 999,
-                          alri = 999,
-                          safcough =999,
-                          safshb = 999,
-                          fstab = 999,
-                          duration_pre_abx = 999))
+        return(data.frame(
+          who_abx = 999,
+          maybe_eff_abx = 999, 
+          ineff_abx = 999,
+          no_abx = 999,
+          any_abx = 999,
+          all_abx = 999,
+          g_maxb = 999,
+          g_fever = 999,
+          g_fever_days = 999,
+          g_maxls = 999,
+          g_sumvom = 999,
+          g_maxdehyd = 999,
+          g_alri = 999,
+          g_safcough = 999,
+          g_safshb = 999,
+          g_fstab = 999,
+          g_duration_pre_abx = 999,
+          p_maxb = 999,
+          p_fever = 999,
+          p_fever_days = 999,
+          p_maxls = 999,
+          p_sumvom = 999,
+          p_maxdehyd = 999,
+          p_alri = 999,
+          p_safcough = 999,
+          p_safshb = 999,
+          p_fstab = 999,
+          p_duration_pre_abx = 999
+        ))
       } else {
-        # NA because not adjusting for severity in controls
-        return(data.frame(maxb = NA,
-                          fever = NA, 
-                          fever_days = NA,
-                          maxls = NA,
-                          sumvom = NA,
-                          maxdehyd = NA,
-                          alri = NA,
-                          safcough =NA,
-                          safshb = NA,
-                          fstab = NA,
-                          duration_pre_abx = NA))
+        return(data.frame(
+          who_abx = NA,
+          maybe_eff_abx = NA, 
+          ineff_abx = NA,
+          no_abx = NA,
+          any_abx = NA,
+          all_abx = NA,
+          g_maxb = NA,
+          g_fever = NA,
+          g_fever_days = NA,
+          g_maxls = NA,
+          g_sumvom = NA,
+          g_maxdehyd = NA,
+          g_alri = NA,
+          g_safcough = NA,
+          g_safshb = NA,
+          g_fstab = NA,
+          g_duration_pre_abx = NA,
+          p_maxb = NA,
+          p_fever = NA,
+          p_fever_days = NA,
+          p_maxls = NA,
+          p_sumvom = NA,
+          p_maxdehyd = NA,
+          p_alri = NA,
+          p_safcough = NA,
+          p_safshb = NA,
+          p_fstab = NA,
+          p_duration_pre_abx = NA
+        ))
       }
-      
-      
     }
   }
   
   severity_df <- lapply(1:nrow(all_tac_cc), severity_pre_abx)
   severity_df <- do.call(rbind, severity_df)
   
+  # Repeat after merging with TAC data for episode-level antibiotic category
+  severity_df$no_abx <- ifelse(
+    severity_df$who_abx == 0 & severity_df$maybe_eff_abx == 0 & severity_df$ineff_abx == 0,
+    1, 0
+  )
+  
+  severity_df$ineff_abx <- ifelse(
+    severity_df$ineff_abx == 1 & (severity_df$who_abx == 1 | severity_df$maybe_eff_abx == 1),
+    0,
+    severity_df$ineff_abx
+  )
+  
+  severity_df$maybe_eff_abx <- ifelse(
+    severity_df$who_abx == 1 & severity_df$maybe_eff_abx == 1,
+    0,
+    severity_df$maybe_eff_abx
+  )
+  
+  severity_df$all_abx <- factor(
+    severity_df$all_abx,
+    levels = 0:2,
+    labels = c(
+      "No or ineffective antibiotics",
+      "Possibly effective antibiotics",
+      "Guideline recommended antibiotics"
+    )
+  )
+  
   all_tac_cc <- cbind(all_tac_cc, severity_df)
   
-  # Drop any controls taking abx on day of sample (indicated by 999 in severity cols)
-  all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 0 & all_tac_cc$maxb == 999),]
+  # Drop any controls taking abx on day of sample
+  all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 0 & all_tac_cc$g_maxb == 999),]
   
   # drop diarrhea episodes coded with 999 in duration (not applicable now that switched severity merge)
   # all_tac_cc <- all_tac_cc[-which(all_tac_cc$case == 1 & all_tac_cc$duration_pre_abx == 999),]
-  
-  # If any_abx = 1 and fstab = 0, received abx before episode began
-  # Mark duration_pre_abx = 0
-  all_tac_cc$duration_pre_abx <- ifelse(all_tac_cc$any_abx == 1 & all_tac_cc$fstab == 0, 0, all_tac_cc$duration_pre_abx)
-  
+
   # Get dates of z-score measurements
   zscore_data$date <- strptime(zscore_data$date, format = "%d%b%Y", tz = "UTC")
   
@@ -2549,12 +2994,27 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
   final_df <- final_df %>%
     rename(
       "episode_date" = date,
-      "dysentery" = maxb,
-      "lsstools" = maxls,
-      "dehyd" = maxdehyd,
-      "daysvomit" = sumvom,
-      "cough" = safcough,
-      "shortbreath" = safshb)
+      "dysentery_g" = g_maxb,
+      "lsstools_g" = g_maxls,
+      "dehyd_g" = g_maxdehyd,
+      "daysvomit_g" = g_sumvom,
+      "cough_g" = g_safcough,
+      "shortbreath_g" = g_safshb,
+      "fever_g" = g_fever,
+      "fever_days_g" = g_fever_days,
+      "alri_g" = g_alri,
+      "duration_pre_abx_g" = g_duration_pre_abx,
+      "dysentery_p" = p_maxb,
+      "lsstools_p" = p_maxls,
+      "dehyd_p" = p_maxdehyd,
+      "daysvomit_p" = p_sumvom,
+      "cough_p" = p_safcough,
+      "shortbreath_p" = p_safshb,
+      "fever_p" = p_fever,
+      "fever_days_p" = p_fever_days,
+      "alri_p" = p_alri,
+      "duration_pre_abx_p" = p_duration_pre_abx
+    )
   
   # select covariates from bl data
   maled_bl <- maled_bl %>%
@@ -2622,7 +3082,17 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
   
   final_df$agemonths <- round(final_df$agedays / 30.44, 1)
   
-  final_df$dehyd <- factor(final_df$dehyd, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
+  final_df$dehyd_g <- factor(
+    final_df$dehyd_g,
+    levels = c(0, 1, 2),
+    labels = c("None", "Some dehydration", "Severe dehydration")
+  )
+  
+  final_df$dehyd_p <- factor(
+    final_df$dehyd_p,
+    levels = c(0, 1, 2),
+    labels = c("None", "Some dehydration", "Severe dehydration")
+  )
   
   # Get rid of extreme HAZ observations
   final_df$monthx_haz <- ifelse(final_df$monthx_haz < -6 | final_df$monthx_haz > 6, NA, final_df$monthx_haz)
@@ -2730,16 +3200,29 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
            ineff_abx,
            no_abx,
            all_abx,
-           duration_pre_abx,
-           dysentery,
-           fever,
-           fever_days,
-           dehyd,
-           lsstools,
-           daysvomit,
-           cough,
-           shortbreath,
-           alri,
+           
+           duration_pre_abx_p,
+           dysentery_p,
+           fever_p,
+           fever_days_p,
+           dehyd_p,
+           lsstools_p,
+           daysvomit_p,
+           cough_p,
+           shortbreath_p,
+           alri_p,
+           
+           duration_pre_abx_g,
+           dysentery_g,
+           fever_g,
+           fever_days_g,
+           dehyd_g,
+           lsstools_g,
+           daysvomit_g,
+           cough_g,
+           shortbreath_g,
+           alri_g,
+           
            income,
            incomeabovemed,
            mated_cont,
@@ -2790,15 +3273,29 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
                         baseline_date = "Date of baseline HAZ measurement",
                         monthx_haz = "HAZ at three months (after & closest to 90 days post-episode)",
                         monthx_date = "Date of month three HAZ measurement",
-                        dysentery = "Dysentery",
-                        lsstools = "Max number of loose stools during episode",
-                        dehyd = "Maximum severity of dehydration during diarrhea episode",
-                        fever = "Reported fever during episode",
-                        fever_days = "Days reported fever during episode",
-                        daysvomit = "Days vommitted during episode",
-                        cough = "Maternal report of cough",
-                        shortbreath = "Maternal report of shortness of breath",
-                        alri = "ALRI definition met",
+                        
+                        duration_pre_abx_g = "Duration of episode prior to guideline recommended antibiotics",
+                        dysentery_g = "Dysentery (pre-guideline rec abx)",
+                        lsstools_g = "Max number of loose stools during episode (pre-guideline rec abx)",
+                        dehyd_g = "Maximum severity of dehydration during diarrhea episode (pre-guideline rec abx)",
+                        fever_g = "Reported fever during episode (pre-guideline rec abx)",
+                        fever_days_g = "Days reported fever during episode (pre-guideline rec abx)",
+                        daysvomit_g = "Days vommitted during episode (pre-guideline rec abx)",
+                        cough_g = "Maternal report of cough (pre-guideline rec abx)",
+                        shortbreath_g = "Maternal report of shortness of breath (pre-guideline rec abx)",
+                        alri_g = "ALRI definition met (pre-guideline rec abx)",
+                        
+                        duration_pre_abx_p = "Duration of episode prior to possibly effective or guideline recommended antibiotics",
+                        dysentery_p = "Dysentery (pre-possibly effective or guideline rec abx)",
+                        lsstools_p = "Max number of loose stools during episode (pre-possibly effective or guideline rec abx)",
+                        dehyd_p = "Maximum severity of dehydration during diarrhea episode (pre-possibly effective or guideline rec abx)",
+                        fever_p = "Reported fever during episode (pre-possibly effective or guideline rec abx)",
+                        fever_days_p = "Days reported fever during episode (pre-possibly effective or guideline rec abx)",
+                        daysvomit_p = "Days vommitted during episode (pre-possibly effective or guideline rec abx)",
+                        cough_p = "Maternal report of cough (pre-possibly effective or guideline rec abx)",
+                        shortbreath_p = "Maternal report of shortness of breath (pre-possibly effective or guideline rec abx)",
+                        alri_p = "ALRI definition met (pre-possibly effective or guideline rec abx)",
+                        
                         rotavirus_attributable = "Rotavirus attributable (AFE > 0.5)",
                         crypto_attributable = "Cryptosporidium attributable (AFE > 0.5)",
                         adenovirus_attributable = "Adenovirus attributable (AFE > 0.5)",

@@ -252,10 +252,13 @@ prep_vida <- function(){
       case_data$F4B_TRT_GIVE_CPNR, case_data$F4B_TRT_PRES_CPNR,
       case_data$F4B_TRT_GIVE_CEF, case_data$F4B_TRT_PRES_CEF,
       case_data$F4B_TRT_GIVE_SLPY, case_data$F4B_TRT_PRES_SLPY
-    ) == 1, na.rm = TRUE) > 0 |
-      case_data$F4A_HOMETRT_AB_SPEC %in% c(
-        "CEFTRIAXONE", "CEFTRIAXONE 500mg", "ciprofloxacine", "CECTRIAXONE"
-      ), 1, 0
+    ) == 1, na.rm = TRUE) > 0 
+      # No longer including hometrt as of 6/11/26
+      # |
+      # case_data$F4A_HOMETRT_AB_SPEC %in% c(
+      #   "CEFTRIAXONE", "CEFTRIAXONE 500mg", "ciprofloxacine", "CECTRIAXONE"
+      # )
+    , 1, 0
   )
   
   # New 9/4/25 - get abx given so can make ast_given_abx variable ------
@@ -270,19 +273,22 @@ prep_vida <- function(){
   case_data$cipro <- ifelse(
     rowSums(cbind(
       case_data$F4B_TRT_GIVE_CPNR, case_data$F4B_TRT_PRES_CPNR
-    ) == 1, na.rm = TRUE) > 0 |
-      case_data$F4A_HOMETRT_AB_SPEC %in% c(
-        "ciprofloxacine"
-      ), 1, 0
+    ) == 1, na.rm = TRUE) > 0 #|
+      #case_data$F4A_HOMETRT_AB_SPEC %in% c(
+      #  "ciprofloxacine"
+      #)
+  , 1, 0
   )
   
   case_data$ceft <- ifelse(
     rowSums(cbind(
       case_data$F4B_TRT_GIVE_CEF, case_data$F4B_TRT_PRES_CEF
-    ) == 1, na.rm = TRUE) > 0 |
-      case_data$F4A_HOMETRT_AB_SPEC %in% c(
-        "CEFTRIAXONE", "CEFTRIAXONE 500mg", "CECTRIAXONE"
-      ), 1, 0
+    ) == 1, na.rm = TRUE) > 0, 
+      #|
+      #case_data$F4A_HOMETRT_AB_SPEC %in% c(
+      #  "CEFTRIAXONE", "CEFTRIAXONE 500mg", "CECTRIAXONE"
+      #),
+    1, 0
   )
   
   # --------------------------------------------------------------------
@@ -298,23 +304,24 @@ prep_vida <- function(){
       case_data$F4B_TRT_GIVE_MACR, case_data$F4B_TRT_PRES_MACR,
       case_data$F4B_TRT_GIVE_NALID, case_data$F4B_TRT_PRES_NALID,
       case_data$F4B_TRT_GIVE_OTHR, case_data$F4B_TRT_PRES_OTHR
-    ) == 1, na.rm = TRUE) > 0 |
-      case_data$F4A_HOMETRT_AB_SPEC %in% c(
-        "COTRIMOXAZOLE", "AMOXICILLIN", "AMXICILLINE+METRO", "AMOXI + ACIDE CLAVUL",
-        "amoxil", "amoxyl", "AMOXYL", "CHLORAMPHENICOL", "TETRACYCLINE", "Amoxicillin",
-        "AMOXACILLIN", "COTRIMOXAZOLLE", "COTROMOXAZOLE", "COTRIMOXAZOL", "COTIRMOXAZOLE",
-        "COTROMOXAZOL", "SULFAMIDE", "SULFAMIDES", "SULFADIME", "sulfamide", "AMOXICILLINE",
-        "ERYTHROMYCINE", "ERYTROMYCINE", "COTRIMXAZOLE", "NIFLUROXAZIDE", "doxy",
-        "Doxycylline", "SEPTRIN, FLAGYL", "SEPTRIN", "SEPTRIN SYRUP", "SEPTRIN TABLET", "SEPTRIN  TABLET"
-      ), 1, 0
+    ) == 1, na.rm = TRUE) > 0 # |
+      # case_data$F4A_HOMETRT_AB_SPEC %in% c(
+      #   "COTRIMOXAZOLE", "AMOXICILLIN", "AMXICILLINE+METRO", "AMOXI + ACIDE CLAVUL",
+      #   "amoxil", "amoxyl", "AMOXYL", "CHLORAMPHENICOL", "TETRACYCLINE", "Amoxicillin",
+      #   "AMOXACILLIN", "COTRIMOXAZOLLE", "COTROMOXAZOLE", "COTRIMOXAZOL", "COTIRMOXAZOLE",
+      #   "COTROMOXAZOL", "SULFAMIDE", "SULFAMIDES", "SULFADIME", "sulfamide", "AMOXICILLINE",
+      #   "ERYTHROMYCINE", "ERYTROMYCINE", "COTRIMXAZOLE", "NIFLUROXAZIDE", "doxy",
+      #   "Doxycylline", "SEPTRIN, FLAGYL", "SEPTRIN", "SEPTRIN SYRUP", "SEPTRIN TABLET", "SEPTRIN  TABLET"
+      # )
+    , 1, 0
   )
   
   case_data$ineff_abx <- ifelse(
-    rowSums(cbind(case_data$F4B_TRT_GIVE_PEN, case_data$F4B_TRT_PRES_PEN) == 1, na.rm = TRUE) > 0 |
-      case_data$F4A_HOMETRT_AB_SPEC %in% c("METRONIDAZOLE","PHARMACY", "A SYRUP AND TABLETS", 
-                                           "cloxacillin" ,"Metronidazole" , "PARACETAMOL","CEFADROXIL",
-                                           "METRONODAZOLE", "ENTAMIZOLE","OREX", "FLAGYL", "ORACEFAL",
-                                           "METRO PERFUSION","METRONIDAZOL","METRONIDAZOLE SYRUP" ,"flaggyl"),
+    rowSums(cbind(case_data$F4B_TRT_GIVE_PEN, case_data$F4B_TRT_PRES_PEN) == 1, na.rm = TRUE) > 0, # |
+      # case_data$F4A_HOMETRT_AB_SPEC %in% c("METRONIDAZOLE","PHARMACY", "A SYRUP AND TABLETS", 
+      #                                      "cloxacillin" ,"Metronidazole" , "PARACETAMOL","CEFADROXIL",
+      #                                      "METRONODAZOLE", "ENTAMIZOLE","OREX", "FLAGYL", "ORACEFAL",
+      #                                      "METRO PERFUSION","METRONIDAZOL","METRONIDAZOLE SYRUP" ,"flaggyl"),
     1, 0
   )
   
@@ -331,7 +338,7 @@ prep_vida <- function(){
                                                                           "Guideline recommended antibiotics"))
   
   case_data$any_abx <- ifelse(
-    rowSums(case_data[, c("F4A_HOMETRT_AB",
+    rowSums(case_data[, c( # "F4A_HOMETRT_AB",
                           "F4B_TRT_PRES_CXL",
                           "F4B_TRT_GIVE_CXL",
                           "F4B_TRT_PRES_GENT",
@@ -532,6 +539,8 @@ prep_vida <- function(){
            shigella_culture_positive,
            tac_shig,
            shigella_tac_or_culture,
+           SHIG_FLEX,
+           SHIG_SONNEI,
            rotavirus,
            st_etec,
            crypto,
@@ -602,6 +611,8 @@ prep_vida <- function(){
            ast_given_abx,
            resistant_WHO_approve,
            susceptible_WHO_approve) %>%
+    rename("shig_flex" = SHIG_FLEX,
+           "shig_sonnei" = SHIG_SONNEI) %>%
     set_variable_labels(child_id = "Child ID",
                         first_id = "First child ID",
                         sex = "Sex", 
@@ -925,10 +936,11 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
       data$F4B_TRT_GIVE_CPNR, data$F4B_TRT_PRES_CPNR,
       data$F4B_TRT_GIVE_CEF, data$F4B_TRT_PRES_CEF,
       data$F4B_TRT_GIVE_SLPY, data$F4B_TRT_PRES_SLPY
-    ) == 1, na.rm = TRUE) > 0 |
-      data$F4A_HOMETRT_AB_SPEC %in% c(
-        "CEFTRIAXONE", "CEFTRIAXONE 500mg", "ciprofloxacine", "CECTRIAXONE"
-      ), 1, 0
+    ) == 1, na.rm = TRUE) > 0, # |
+      # data$F4A_HOMETRT_AB_SPEC %in% c(
+      #   "CEFTRIAXONE", "CEFTRIAXONE 500mg", "ciprofloxacine", "CECTRIAXONE"
+      # ), 
+    1, 0
   )
   
   
@@ -943,23 +955,24 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
       data$F4B_TRT_GIVE_MACR, data$F4B_TRT_PRES_MACR,
       data$F4B_TRT_GIVE_NALID, data$F4B_TRT_PRES_NALID,
       data$F4B_TRT_GIVE_OTHR, data$F4B_TRT_PRES_OTHR
-    ) == 1, na.rm = TRUE) > 0 |
-      data$F4A_HOMETRT_AB_SPEC %in% c(
-        "COTRIMOXAZOLE", "AMOXICILLIN", "AMXICILLINE+METRO", "AMOXI + ACIDE CLAVUL",
-        "amoxil", "amoxyl", "AMOXYL", "CHLORAMPHENICOL", "TETRACYCLINE", "Amoxicillin",
-        "AMOXACILLIN", "COTRIMOXAZOLLE", "COTROMOXAZOLE", "COTRIMOXAZOL", "COTIRMOXAZOLE",
-        "COTROMOXAZOL", "SULFAMIDE", "SULFAMIDES", "SULFADIME", "sulfamide", "AMOXICILLINE",
-        "ERYTHROMYCINE", "ERYTROMYCINE", "COTRIMXAZOLE", "NIFLUROXAZIDE", "doxy",
-        "Doxycylline", "SEPTRIN, FLAGYL", "SEPTRIN", "SEPTRIN SYRUP", "SEPTRIN TABLET"
-      ), 1, 0
+    ) == 1, na.rm = TRUE) > 0, # |
+      # data$F4A_HOMETRT_AB_SPEC %in% c(
+      #   "COTRIMOXAZOLE", "AMOXICILLIN", "AMXICILLINE+METRO", "AMOXI + ACIDE CLAVUL",
+      #   "amoxil", "amoxyl", "AMOXYL", "CHLORAMPHENICOL", "TETRACYCLINE", "Amoxicillin",
+      #   "AMOXACILLIN", "COTRIMOXAZOLLE", "COTROMOXAZOLE", "COTRIMOXAZOL", "COTIRMOXAZOLE",
+      #   "COTROMOXAZOL", "SULFAMIDE", "SULFAMIDES", "SULFADIME", "sulfamide", "AMOXICILLINE",
+      #   "ERYTHROMYCINE", "ERYTROMYCINE", "COTRIMXAZOLE", "NIFLUROXAZIDE", "doxy",
+      #   "Doxycylline", "SEPTRIN, FLAGYL", "SEPTRIN", "SEPTRIN SYRUP", "SEPTRIN TABLET"
+      # ), 
+    1, 0
   )
   
   data$ineff_abx <- ifelse(
-    rowSums(cbind(data$F4B_TRT_GIVE_PEN, data$F4B_TRT_PRES_PEN) == 1, na.rm = TRUE) > 0 |
-      data$F4A_HOMETRT_AB_SPEC %in% c("METRONIDAZOLE","PHARMACY", "A SYRUP AND TABLETS", 
-                                      "cloxacillin" ,"Metronidazole" , "PARACETAMOL","CEFADROXIL",
-                                      "METRONODAZOLE", "ENTAMIZOLE","OREX", "FLAGYL", "ORACEFAL",
-                                      "METRO PERFUSION","METRONIDAZOL","METRONIDAZOLE SYRUP" ,"flaggyl"),
+    rowSums(cbind(data$F4B_TRT_GIVE_PEN, data$F4B_TRT_PRES_PEN) == 1, na.rm = TRUE) > 0, # |
+      # data$F4A_HOMETRT_AB_SPEC %in% c("METRONIDAZOLE","PHARMACY", "A SYRUP AND TABLETS", 
+      #                                 "cloxacillin" ,"Metronidazole" , "PARACETAMOL","CEFADROXIL",
+      #                                 "METRONODAZOLE", "ENTAMIZOLE","OREX", "FLAGYL", "ORACEFAL",
+      #                                 "METRO PERFUSION","METRONIDAZOL","METRONIDAZOLE SYRUP" ,"flaggyl"),
     1, 0
   )
   
@@ -974,7 +987,7 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data$all_abx <- factor(data$all_abx, levels = 0:2, labels = c("Ineffective or no abx", "Maybe effective abx", "WHO approved abx"))
   
   data$any_abx <- ifelse(
-    rowSums(data[, c("F4A_HOMETRT_AB",
+    rowSums(data[, c(# "F4A_HOMETRT_AB",
                      "F4B_TRT_PRES_CXL",
                      "F4B_TRT_GIVE_CXL",
                      "F4B_TRT_PRES_GENT",
@@ -1089,6 +1102,8 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            safe_water,
            safe_sanit,
            shigella_culture_positive,
+           SHIG_FLEX,
+           SHIG_SONNEI,
            rotavirus,
            st_etec,
            crypto,
@@ -1138,6 +1153,8 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            no_abx,
            all_abx,
            any_abx) %>%
+    rename("shig_flex" = SHIG_FLEX,
+           "shig_sonnei" = SHIG_SONNEI) %>%
     set_variable_labels(child_id = "Child ID",
                         first_id = "First ID",
                         case_id = "Case ID",

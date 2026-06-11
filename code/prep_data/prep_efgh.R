@@ -799,6 +799,7 @@ prep_efgh <- function(){
     filter(shigella_sample_type == "Rectal") %>%
     select("pid",
            "shigella_attributable",
+           "shigella_serotype",
            "adenovirus_40_41_attributable",
            "aeromonas_attributable",
            "astrovirus_attributable",
@@ -831,6 +832,18 @@ prep_efgh <- function(){
            "ST.ETEC_ct",
            "v_cholerae_ct",
            "salmonella_ct") %>%
+    # Binary shigella flex and shigella sonnei
+    mutate(
+      shigella_flex = ifelse(
+        is.na(shigella_serotype),
+        NA_real_,
+        as.numeric(grepl("S\\.flexneri", shigella_serotype))
+      ),
+      shigella_sonnei = ifelse(
+        is.na(shigella_serotype),
+        NA_real_,
+        as.numeric(grepl("S\\.sonnei", shigella_serotype))
+      )) %>%
     left_join(shigella_data[,c("pid", 
                                "tac_shigella_attributable",
                                "positive_tac_or_culture")], by = "pid") %>% 

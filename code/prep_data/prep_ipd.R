@@ -11,8 +11,11 @@ library(labelled)
 #                           CASE ONLY                               #
 #####################################################################
 
-full <- FALSE # FULL = TRUE all diarrhea cases (co-etiology meta-analysis); FALSE shigella tac or culture cases (original meta-analysis)
+full <- TRUE # FULL = TRUE all diarrhea cases (co-etiology meta-analysis); FALSE shigella tac or culture cases (original meta-analysis)
 MALED_MSD <- FALSE
+
+MALED_severity_pre <- "guideline" # "possibly" if use severity info pre-possibly or guideline rec abx (for 3 level abx analyses); use _p severity vars
+                                 # "guideline" if severity info pre-guideline rec abx only (for 2 level abx analyses); use _g severity vars
 
 if(full){
   # Read in clean datasets from other studies
@@ -210,13 +213,36 @@ vida_data$lsstools <- ifelse(vida_data$lsstools == "3 stools" | vida_data$lsstoo
                              ifelse(vida_data$lsstools == "6 to 10 stools", "7 to 10 per day", "Over 10 per day"))
 
 # MAL-ED
-maled_data <- maled_data %>%
-  mutate(any_vom = if_else(daysvomit > 0, 1, 0),
-         dehyd_level = if_else(dehyd == "None", "No dehydration", dehyd),
-         lsstools = if_else(lsstools <=6, "6 or less per day",
-                            if_else(lsstools >= 7 & lsstools <= 10, "7 to 10 per day", "Over 10 per day"))) %>%
-  rename('any_fev' = fever,
-         'duration_pre_enroll' = duration_pre_abx)
+
+# maled_data <- maled_data %>%
+#   mutate(any_vom = if_else(daysvomit > 0, 1, 0),
+#          dehyd_level = if_else(dehyd == "None", "No dehydration", dehyd),
+#          lsstools = if_else(lsstools <=6, "6 or less per day",
+#                             if_else(lsstools >= 7 & lsstools <= 10, "7 to 10 per day", "Over 10 per day"))) %>%
+#   rename('any_fev' = fever,
+#          'duration_pre_enroll' = duration_pre_abx)
+
+if(MALED_severity_pre == "possibly"){
+  maled_data <- maled_data %>%
+    mutate(any_vom = if_else(daysvomit_p > 0, 1, 0),
+           dehyd_level = if_else(dehyd_p == "None", "No dehydration", dehyd_p),
+           lsstools = if_else(lsstools_p <=6, "6 or less per day",
+                              if_else(lsstools_p >= 7 & lsstools_p <= 10, "7 to 10 per day", "Over 10 per day"))) %>%
+    rename('any_fev' = fever_p,
+           'duration_pre_enroll' = duration_pre_abx_p,
+           'dysentery' = dysentery_p)
+} else if(MALED_severity_pre == "guideline"){
+  maled_data <- maled_data %>%
+    mutate(any_vom = if_else(daysvomit_g > 0, 1, 0),
+           dehyd_level = if_else(dehyd_g == "None", "No dehydration", dehyd_g),
+           lsstools = if_else(lsstools_g <=6, "6 or less per day",
+                              if_else(lsstools_g >= 7 & lsstools_g <= 10, "7 to 10 per day", "Over 10 per day"))) %>%
+    rename('any_fev' = fever_g,
+           'duration_pre_enroll' = duration_pre_abx_g,
+           'dysentery' = dysentery_g)
+} else{
+  stop("MALED_severity_pre must be guideline or possibly")
+}
 
 # ------------------------------------------------------------------------------
 #                             PATHOGEN QUANTITY
@@ -276,6 +302,10 @@ abcd_data <- abcd_data %>%
   mutate(
     co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
   ) %>%
+  mutate(
+    shigella_flex = NA,
+    shigella_sonnei = NA
+  ) %>%
   ungroup()
 
 # EFGH
@@ -334,6 +364,10 @@ gems_data <- gems_data %>%
   mutate(
     co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
   ) %>%
+  rename(
+    'shigella_flex' = shig_flex,
+    'shigella_sonnei' = shig_sonnei
+  ) %>%
   ungroup()
 
 # VIDA
@@ -364,6 +398,10 @@ vida_data <- vida_data %>%
     campylobacter_new = c_jejuni_coli_new,
     co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
   ) %>%
+  rename(
+    'shigella_flex' = shig_flex,
+    'shigella_sonnei' = shig_sonnei
+  ) %>%
   ungroup()
 
 # MAL-ED
@@ -388,6 +426,10 @@ maled_data <- maled_data %>%
   mutate(
     st_etec_tac_attr = etec_tac_attr, 
     co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
+  ) %>%
+  rename(
+    'shigella_flex' = S_flexneri,
+    'shigella_sonnei' = S_sonnei
   ) %>%
   ungroup()
 
@@ -440,23 +482,27 @@ maled_data <- maled_data %>%
 
 # ABCD
 abcd_data$all_abx <- ifelse(abcd_data$an_grp_01 == 1, 2, 0)
+abcd_data$guideline_abx <- abcd_data$an_grp_01
 
 # EFGH 
 efgh_data$all_abx <- ifelse(efgh_data$all_abx == "No or ineffective antibiotics", 0,
                             ifelse(efgh_data$all_abx == "Possibly effective antibiotics", 1, 2))
+efgh_data$guideline_abx <- efgh_data$who_rec_abx
 
 # GEMS
 gems_data$all_abx <- ifelse(gems_data$all_abx == "No or ineffective antibiotics", 0,
                             ifelse(gems_data$all_abx == "Possibly effective antibiotics", 1, 2))
-
+gems_data$guideline_abx <- gems_data$who_abx
 
 # VIDA
 vida_data$all_abx <- ifelse(vida_data$all_abx == "No or ineffective antibiotics", 0,
                             ifelse(vida_data$all_abx == "Possibly effective antibiotics", 1, 2))
+vida_data$guideline_abx <- vida_data$who_abx
 
 # MAL-ED
 maled_data$all_abx <- ifelse(maled_data$all_abx == "No or ineffective antibiotics", 0,
                              ifelse(maled_data$all_abx == "Possibly effective antibiotics", 1, 2))
+maled_data$guideline_abx <- maled_data$who_abx
 
 # ------------------------------------------------------------------------------
 #                                    OUTCOME
@@ -535,7 +581,10 @@ abcd_data <- abcd_data %>%
          shig_attr,
          shigella_tac_attr, 
          culture_shig_attr,
+         shigella_sonnei,
+         shigella_flex,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -595,7 +644,10 @@ efgh_data <- efgh_data %>%
          shig_attr,
          shigella_tac_attr,
          culture_shig_attr,
+         shigella_sonnei,
+         shigella_flex,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -655,7 +707,10 @@ gems_data <- gems_data %>%
          shig_attr,
          shigella_tac_attr,
          culture_shig_attr,
+         shigella_sonnei,
+         shigella_flex,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -715,7 +770,10 @@ vida_data <- vida_data %>%
          shig_attr,
          shigella_tac_attr,
          culture_shig_attr,
+         shigella_sonnei,
+         shigella_flex,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -776,7 +834,10 @@ maled_data <- maled_data %>%
          shig_attr,
          shigella_tac_attr,
          culture_shig_attr,
+         shigella_sonnei,
+         shigella_flex,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -851,6 +912,7 @@ combo_data <- combo_data %>%
                       shigella_tac_attr = "TAC attributable Shigella",
                       culture_shig_attr = "Culture Shigella attributable diarrhea",
                       all_abx = "Type of antibiotic received",
+                      guideline_abx = "Received guideline recommended antibiotics",
                       sex = "Sex",
                       age = "Age (months)",
                       ses_quintile = "Socioeconomic quintile",
@@ -889,13 +951,35 @@ combo_data <- combo_data %>%
                       final_haz = "HAZ at followup (day 60 or day 90)",
                       MSD = "GEMS definition of MSD (or as close as possible)")
 
+# keep existing names for 3-level possibly-effective antibiotic analysis
+# add suffix only for 2-level guideline/bin_abx analysis
+abx_suffix <- if_else(MALED_severity_pre == "guideline", "_bin_abx", "")
+
 if(full){
-  saveRDS(combo_data, here::here("data/ipd_data/ipd_data_no_etiology_full.Rds"))
+  saveRDS(
+    combo_data,
+    here::here(
+      "data/ipd_data",
+      paste0("ipd_data_no_etiology_full", abx_suffix, ".Rds")
+    )
+  )
 } else{
   if(MALED_MSD){
-    saveRDS(combo_data, here::here("data/ipd_data/ipd_data_no_etiology.Rds"))
+    saveRDS(
+      combo_data,
+      here::here(
+        "data/ipd_data",
+        paste0("ipd_data_no_etiology", abx_suffix, ".Rds")
+      )
+    )
   } else{
-    saveRDS(combo_data, here::here("data/ipd_data/ipd_data_no_etiology_inc_LSD.Rds"))
+    saveRDS(
+      combo_data,
+      here::here(
+        "data/ipd_data",
+        paste0("ipd_data_no_etiology_inc_LSD", abx_suffix, ".Rds")
+      )
+    )
   }
 }
 
@@ -903,7 +987,7 @@ if(full){
 #                           CASE-CONTROL.                           #
 #####################################################################
 
-case_def <- "tac_or_culture_shig" # case definitions: tac_or_culture_shig, tac_shig, culture_shig, all_diar
+case_def <- "culture_shig" # case definitions: tac_or_culture_shig, tac_shig, culture_shig, all_diar
 
 gems_data <- readRDS(here::here(paste0("data/gems_data/gems_case_control_", case_def, ".Rds")))
 maled_data <- readRDS(here::here(paste0("data/maled_data/maled_case_control_", case_def, ".Rds")))
@@ -914,8 +998,12 @@ gems_data$study <- "GEMS"
 vida_data$study <- "VIDA"
 maled_data$study <- "MALED"
 
-msd <- TRUE # subset MAL-ED to MSD cases
+msd <- FALSE # subset MAL-ED to MSD cases
 lsd <- FALSE
+
+MALED_severity_pre <- "possibly" 
+# "possibly" = 3-level abx analysis; use _p MAL-ED severity vars; existing file names
+# "guideline" = 2-level guideline abx analysis; use _g MAL-ED severity vars; add _bin_abx to file names
 
 # MAL-ED remove LSD cases & matched controls 
 # maled_LSD_cases <- maled_data$case_sid[which(maled_data$case == 1 & maled_data$MSD == 0)]
@@ -1018,13 +1106,30 @@ vida_data$lsstools <- ifelse(vida_data$lsstools == "3 stools" | vida_data$lsstoo
                              ifelse(vida_data$lsstools == "6 to 10 stools", "7 to 10 per day", "Over 10 per day"))
 
 # MAL-ED
-maled_data <- maled_data %>%
-  mutate(any_vom = if_else(daysvomit > 0, 1, 0),
-         dehyd_level = if_else(dehyd == "None", "No dehydration", dehyd),
-         lsstools = if_else(lsstools <=6, "6 or less per day",
-                            if_else(lsstools >= 7 & lsstools <= 10, "7 to 10 per day", "Over 10 per day"))) %>%
-  rename('any_fev' = fever,
-         'duration_pre_enroll' = duration_pre_abx)
+# MAL-ED
+if(MALED_severity_pre == "possibly"){
+  maled_data <- maled_data %>%
+    mutate(any_vom = if_else(daysvomit_p > 0, 1, 0),
+           dehyd_level = if_else(dehyd_p == "None", "No dehydration", dehyd_p),
+           lsstools = if_else(lsstools_p <= 6, "6 or less per day",
+                              if_else(lsstools_p >= 7 & lsstools_p <= 10,
+                                      "7 to 10 per day", "Over 10 per day"))) %>%
+    rename('any_fev' = fever_p,
+           'duration_pre_enroll' = duration_pre_abx_p,
+           'dysentery' = dysentery_p)
+} else if(MALED_severity_pre == "guideline"){
+  maled_data <- maled_data %>%
+    mutate(any_vom = if_else(daysvomit_g > 0, 1, 0),
+           dehyd_level = if_else(dehyd_g == "None", "No dehydration", dehyd_g),
+           lsstools = if_else(lsstools_g <= 6, "6 or less per day",
+                              if_else(lsstools_g >= 7 & lsstools_g <= 10,
+                                      "7 to 10 per day", "Over 10 per day"))) %>%
+    rename('any_fev' = fever_g,
+           'duration_pre_enroll' = duration_pre_abx_g,
+           'dysentery' = dysentery_g)
+} else{
+  stop("MALED_severity_pre must be guideline or possibly")
+}
 
 # ------------------------------------------------------------------------------
 #                             PATHOGEN QUANTITY
@@ -1058,7 +1163,9 @@ gems_data <- gems_data %>%
          'norovirus_new' = noro_new,
          'campylobacter_new' = campy_new,
          'sapovirus_new' = sapo_new,
-         'eaec_new' = EAEC_new)
+         'eaec_new' = EAEC_new) %>% 
+  rename('shigella_flex' = shig_flex,
+         'shigella_sonnei' = shig_sonnei)
 
 # VIDA
 # in data there's a binary etec alone and various TAC ETEC but unclear which if any are okay
@@ -1068,14 +1175,18 @@ vida_data <- vida_data %>%
          'norovirus_new' = noro_new,
          'campylobacter_new' = campy_new,
          'sapovirus_new' = sapo_new,
-         'cryptosporidium_new' = crypto_new)
+         'cryptosporidium_new' = crypto_new) %>% 
+  rename('shigella_flex' = shig_flex,
+         'shigella_sonnei' = shig_sonnei)
 
 # MAL-ED
 maled_data <- maled_data %>%
   rename('adenovirus_new' = adenovirus_40_41_new,
          'etec_new' = ETEC_new,
          'tepec_new' = tEPEC_new,
-         'campylobacter_new' = campylobacter_pan_new)
+         'campylobacter_new' = campylobacter_pan_new) %>% 
+  rename('shigella_flex' = S_flexneri,
+         'shigella_sonnei' = S_sonnei)
 
 # Check no attributable etiology variable pathogens to include
 # also v cholera, e histolytica, salmonella, isospora, aeromonas....
@@ -1119,15 +1230,19 @@ maled_data <- maled_data %>%
 # GEMS
 gems_data$all_abx <- ifelse(gems_data$all_abx == "No/Ineffective abx", 0,
                             ifelse(gems_data$all_abx == "Maybe effective abx", 1, 2))
+gems_data$guideline_abx <- gems_data$who_abx
 
 
 # VIDA
 vida_data$all_abx <- ifelse(vida_data$all_abx == "Ineffective or no abx", 0,
                             ifelse(vida_data$all_abx == "Maybe effective abx", 1, 2))
+vida_data$guideline_abx <- vida_data$who_abx
 
 # MAL-ED
 maled_data$all_abx <- ifelse(maled_data$all_abx == "No or ineffective antibiotics", 0,
                              ifelse(maled_data$all_abx == "Possibly effective antibiotics", 1, 2))
+maled_data$guideline_abx <- maled_data$who_abx
+
 # ------------------------------------------------------------------------------
 #                                    OUTCOME
 # ------------------------------------------------------------------------------
@@ -1199,7 +1314,10 @@ gems_data <- gems_data %>%
          shig_attr,
          culture_shig_attr,
          tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -1242,7 +1360,10 @@ vida_data <- vida_data %>%
          shig_attr,
          culture_shig_attr,
          tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -1303,7 +1424,10 @@ maled_data <- maled_data %>%
          shig_attr,
          culture_shig_attr,
          tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
          all_abx,
+         guideline_abx,
          sex,
          age,
          ses_quintile,
@@ -1367,6 +1491,7 @@ combo_data <- combo_data %>%
                       tac_shig_attr = "TAC attributable Shigella diarrhea",
                       culture_shig_attr = "Culture attributable Shigella diarrhea",
                       all_abx = "Type of antibiotic received",
+                      guideline_abx = "Received guideline recommended antibiotics",
                       sex = "Sex",
                       age = "Age (months)",
                       ses_quintile = "Socioeconomic quintile",
@@ -1399,11 +1524,47 @@ combo_data <- combo_data %>%
                       eaec_new = "TAC EAEC quantity",
                       final_haz = "HAZ at followup (day 60 or day 90)")
 
+# keep existing names for 3-level possibly-effective antibiotic analysis
+# add suffix only for 2-level guideline/bin_abx analysis
+abx_suffix <- if_else(MALED_severity_pre == "guideline", "_bin_abx", "")
+
 if(msd){
-  saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_msd_", case_def,".Rds")))
+  saveRDS(
+    combo_data,
+    here::here(paste0(
+      "data/ipd_data/ipd_data_case_control_msd_",
+      case_def,
+      abx_suffix,
+      ".Rds"
+    ))
+  )
 } else if(lsd){
-  saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_lsd_", case_def,".Rds")))
+  saveRDS(
+    combo_data,
+    here::here(paste0(
+      "data/ipd_data/ipd_data_case_control_lsd_",
+      case_def,
+      abx_suffix,
+      ".Rds"
+    ))
+  )
 } else {
-  saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_", case_def, ".Rds")))
+  saveRDS(
+    combo_data,
+    here::here(paste0(
+      "data/ipd_data/ipd_data_case_control_",
+      case_def,
+      abx_suffix,
+      ".Rds"
+    ))
+  )
 }
 
+# if(msd){
+#   saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_msd_", case_def,".Rds")))
+# } else if(lsd){
+#   saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_lsd_", case_def,".Rds")))
+# } else {
+#   saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_", case_def, ".Rds")))
+# }
+# 

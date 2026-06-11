@@ -575,20 +575,22 @@ prep_gems <- function(){
   
   # ----- Antibiotics pre-enroll -----
   
+  # No longer including pre-enrollment antibiotics 6/11/26
+  
   # Any abx = hometrt abx marked 1
-  case_data_full$any_abx <- ifelse(case_data_full$F4A_HOMETRT_AB == 1, 1, case_data_full$any_abx)
-  
-  # WHO recommended abx
-  case_data_full$who_abx <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% who_approved_names, 1, case_data_full$who_abx)
-  
-  # azithro
-  case_data_full$azithro <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% azithro_names, 1, case_data_full$azithro)
-  
-  # Maybe effective antibiotics
-  case_data_full$maybe_eff_abx <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% maybe_effective_abx, 1, case_data_full$maybe_eff_abx)
-  
-  # Ineffective abx
-  case_data_full$ineff_abx <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% ineffective_abx, 1, case_data_full$ineff_abx)
+  # case_data_full$any_abx <- ifelse(case_data_full$F4A_HOMETRT_AB == 1, 1, case_data_full$any_abx)
+  # 
+  # # WHO recommended abx
+  # case_data_full$who_abx <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% who_approved_names, 1, case_data_full$who_abx)
+  # 
+  # # azithro
+  # case_data_full$azithro <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% azithro_names, 1, case_data_full$azithro)
+  # 
+  # # Maybe effective antibiotics
+  # case_data_full$maybe_eff_abx <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% maybe_effective_abx, 1, case_data_full$maybe_eff_abx)
+  # 
+  # # Ineffective abx
+  # case_data_full$ineff_abx <- ifelse(case_data_full$F4A_HOMETRT_AB_SPEC.x %in% ineffective_abx, 1, case_data_full$ineff_abx)
   
   # ----- Antibiotics hospital or home -----
   
@@ -945,6 +947,8 @@ prep_gems <- function(){
            shigella_attributable,
            shigella_attributable_tac,
            shigella_attributable_culture,
+           Shig_flex, 
+           Shig_sonnei,
            rotavirus_attributable,
            etec_attributable,
            adenovirus_attributable,
@@ -1035,8 +1039,15 @@ prep_gems <- function(){
            "num_hh_lt5" = F4A_YNG_CHILDREN,
            "breastfed" = F4A_BREASTFED,
            "vomit" = F4A_DRH_VOMIT,
-           "fever" = F4A_DRH_FEVER) %>%
+           "fever" = F4A_DRH_FEVER,
+           "shig_flex" = Shig_flex,
+           "shig_sonnei" = Shig_sonnei) %>%
     mutate(fever = if_else(fever == 9, NA, fever)) # 9s for fever are NAs
+  
+  # if culture negative, shig_flex and shig_sonnei should be NA (we do not know types of shig tac positive who were cultuer neg)
+  case_data_select <- case_data_select %>%
+    mutate(shig_flex = if_else(shigella_attributable_culture == 0, NA, shig_flex),
+           shig_sonnei = if_else(shigella_attributable_culture == 0, NA, shig_sonnei))
   
   # Transform factors as needed
   
@@ -1105,6 +1116,8 @@ prep_gems <- function(){
                         shigella_attributable = "Shigella attributable diarrhea via TAC (AFE>0.5) or culture",
                         shigella_attributable_tac = "Shigella attributable diarrhea via TAC (AFE>0.5)",
                         shigella_attributable_culture = "Shigella attributable diarrhea via culture",
+                        shig_flex = "S. flexneri",
+                        shig_sonnei = "S. sonnei",
                         rotavirus_attributable = "Rotavirus attributable diarrhea (AFE>0.5)",
                         etec_attributable = "ST/LT ETEC attributable diarrhea (AFE>0.5)",
                         cryptosporidium_attributable = "Cryptosporidium attributable diarrhea (AFE>0.5)",
@@ -1817,20 +1830,22 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   
   # ----- Antibiotics pre-enroll -----
   
+  # No longer including hometrt antibiotics 6/11/26
+  
   # Any abx = hometrt abx marked 1
-  data_full$any_abx <- ifelse(data_full$F4A_HOMETRT_AB == 1, 1, data_full$any_abx)
-  
-  # WHO recommended abx
-  data_full$who_abx <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% who_approved_names, 1, data_full$who_abx)
-  
-  # Maybe effective antibiotics
-  data_full$maybe_eff_abx <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% maybe_effective_abx, 1, data_full$maybe_eff_abx)
-  
-  # Ineffective abx
-  data_full$ineff_abx <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% ineffective_abx, 1, data_full$ineff_abx)
-  
-  # azithro
-  data_full$azithro <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% azithro_names, 1, data_full$azithro)
+  # data_full$any_abx <- ifelse(data_full$F4A_HOMETRT_AB == 1, 1, data_full$any_abx)
+  # 
+  # # WHO recommended abx
+  # data_full$who_abx <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% who_approved_names, 1, data_full$who_abx)
+  # 
+  # # Maybe effective antibiotics
+  # data_full$maybe_eff_abx <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% maybe_effective_abx, 1, data_full$maybe_eff_abx)
+  # 
+  # # Ineffective abx
+  # data_full$ineff_abx <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% ineffective_abx, 1, data_full$ineff_abx)
+  # 
+  # # azithro
+  # data_full$azithro <- ifelse(data_full$F4A_HOMETRT_AB_SPEC.x %in% azithro_names, 1, data_full$azithro)
   
   # Antibiotics hospital or home
   
@@ -2179,6 +2194,8 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            shigella_culture_pos,
            shigella_attributable_tac, 
            shigella_attributable,
+           Shig_flex, 
+           Shig_sonnei,
            rotavirus_attributable,
            st_etec_attributable,
            cryptosporidium_attributable,
@@ -2232,7 +2249,14 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            maybe_eff_abx,
            ineff_abx, 
            all_abx) %>%
-    rename("site" = SITE)
+    rename("site" = SITE,
+           "shig_flex" = Shig_flex,
+           "shig_sonnei" = Shig_sonnei)
+  
+  # if culture negative, shig_flex and shig_sonnei should be NA (we do not know types of shig tac positive who were cultuer neg)
+  data_select <- data_select %>%
+    mutate(shig_flex = if_else(shigella_culture_pos == 0, NA, shig_flex),
+           shig_sonnei = if_else(shigella_culture_pos == 0, NA, shig_sonnei))
   
   # Transform factors as needed
   
@@ -2353,7 +2377,7 @@ gems_case_control_tac <- prep_gems_case_control(case_def = "tac_shig_diar")
 gems_case_control_culture <- prep_gems_case_control(case_def = "culture_shig_diar")
 gems_case_control_all <- prep_gems_case_control(case_def = "all_diar")
 
-saveRDS(gems_case_control_tac_or_culture, here::here("data/gems_data/gems_case_control_tac_or_culture.Rds"))
+saveRDS(gems_case_control_tac_or_culture, here::here("data/gems_data/gems_case_control_tac_or_culture_shig.Rds"))
 saveRDS(gems_case_control_tac, here::here("data/gems_data/gems_case_control_tac.Rds"))
 saveRDS(gems_case_control_culture, here::here("data/gems_data/gems_case_control_culture.Rds"))
 saveRDS(gems_case_control_all, here::here("data/gems_data/gems_case_control_all_diar.Rds"))
