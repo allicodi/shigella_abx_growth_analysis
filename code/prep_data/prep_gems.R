@@ -1278,6 +1278,9 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data_full$giardia_new <- ifelse(data_full$giardia> 35, 35, data_full$giardia)
   data_full$giardia_new <- (35 - data_full$giardia_new) / 3.322
   data_full$EAEC_new <-  data_full$EAEC.y
+  data_full$v_cholerae_new <- data_full$v_cholerae
+  data_full$salmonella_new <- data_full$salmonella
+  data_full$c_jejuni_coli_new <- data_full$c_jejuni_coli
   
   # create variables for other pathogen attribution & detected
   data_full$adenovirus_attributable <- ifelse(data_full$adenovirus_40_41_afe > 0.5, 1, 0)
@@ -1425,11 +1428,32 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data_full$F7_MED_HAZ <- ifelse(data_full$F7_MED_HAZ < -6 | data_full$F7_MED_HAZ > 6, NA, data_full$F7_MED_HAZ)
   data_full$F4B_MED_HAZ <- ifelse(data_full$F4B_MED_HAZ < -6 | data_full$F4B_MED_HAZ > 6, NA, data_full$F4B_MED_HAZ)
   
+  data_full$F5_WHZ <- ifelse(data_full$F5_WHZ < -6 | data_full$F5_WHZ > 6, NA, data_full$F5_WHZ)
+  data_full$F7_MED_WHZ <- ifelse(data_full$F7_MED_WHZ < -6 | data_full$F7_MED_WHZ > 6, NA, data_full$F7_MED_WHZ)
+  data_full$F4B_MED_WHZ <- ifelse(data_full$F4B_MED_WHZ < -6 | data_full$F4B_MED_WHZ > 6, NA, data_full$F4B_MED_WHZ)
+  
+  data_full$F5_WAZ <- ifelse(data_full$F5_WAZ < -6 | data_full$F5_WAZ > 6, NA, data_full$F5_WAZ)
+  # WAZ does not have the med variables
+  #data_full$F7_MED_WAZ <- ifelse(data_full$F7_MED_WAZ < -6 | data_full$F7_MED_WAZ > 6, NA, data_full$F7_MED_WAZ)
+  #data_full$F4B_MED_WAZ <- ifelse(data_full$F4B_MED_WAZ < -6 | data_full$F4B_MED_WAZ > 6, NA, data_full$F4B_MED_WAZ)
+  data_full$F7_WAZ <- ifelse(data_full$F7_WAZ < -6 | data_full$F7_WAZ > 6, NA, data_full$F7_WAZ)
+  data_full$F4B_WAZ <- ifelse(data_full$F4B_WAZ < -6 | data_full$F4B_WAZ > 6, NA, data_full$F4B_WAZ)
+  
   data_full$hazdiff <- ifelse(data_full$case == 1, 
                               data_full$F5_HAZ - data_full$F4B_MED_HAZ,
                               data_full$F5_HAZ - data_full$F7_MED_HAZ)
   
+  data_full$whzdiff <- ifelse(data_full$case == 1,
+                              data_full$F5_WHZ - data_full$F4B_MED_WHZ,
+                              data_full$F5_WHZ - data_full$F7_MED_WHZ)
+  
+  data_full$wazdiff <- ifelse(data_full$case == 1, 
+                              data_full$F5_WAZ - data_full$F4B_WAZ,
+                              data_full$F5_WAZ - data_full$F7_WAZ)
+  
   data_full$hazd60 <- data_full$F5_HAZ
+  data_full$whzd60 <- data_full$F5_WHZ
+  data_full$wazd60 <- data_full$F5_WAZ
   
   ## ANTIBIOTICS - vars for any abx, who approved abx
   data_full$any_abx <- 0
@@ -1439,7 +1463,8 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data_full$ineff_abx <- 0
   data_full$no_abx <- 0
   data_full$azithro <- 0
-  
+  data_full$cipro <- 0 
+
   who_approved_names <- c("ARITHROMYCIN", 
                           "ASITHROMYCIN",
                           "ASITHROMYCIN, ERYTHROMYCIN",
@@ -1958,8 +1983,15 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data_full$all_abx <- factor(data_full$all_abx, levels = 0:2, labels = c("No/Ineffective abx", "Maybe effective abx", "WHO approved abx"))
   
   # azithro specifically
-  data_full$azithro <- ifelse(data_full$F4B_TRT_GIVE_AZI == 1 | data_full$F4B_TRT_PRES_AZI.x == 1 |  data_full$F7_MED_AZITH == 1,
+  data_full$azithro <- ifelse(data_full$F4B_TRT_GIVE_AZI == 1 | data_full$F4B_TRT_PRES_AZI.x == 1, 
                                    1, data_full$azithro)
+  
+  # cipro
+  data_full$cipro <- ifelse(
+    data_full$F4B_TRT_GIVE_CPNR == 1 | data_full$F4B_TRT_PRES_CPNR.x == 1, 1, data_full$cipro
+  )
+  
+  # ceft not explicitly in GEMS
   
   # Drop controls with abx (healthy controls only)
   data_full <- data_full[-which(data_full$case == 0 & data_full$any_abx == 1),]
@@ -1989,6 +2021,14 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data_full$enr_haz <- ifelse(data_full$case == 1,
                               data_full$F4B_MED_HAZ,
                               data_full$F7_MED_HAZ)
+  
+  data_full$enr_whz <- ifelse(data_full$case == 1,
+                              data_full$F4B_MED_WHZ,
+                              data_full$F7_MED_WHZ)
+  
+  data_full$enr_waz <- ifelse(data_full$case == 1,
+                              data_full$F4B_WAZ,
+                              data_full$F7_WAZ)
   
   # site  (SITE - site - 1-7 but not seeing dictionary)
   
@@ -2170,6 +2210,37 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   # Duration before enrollment
   data_full$duration_pre_enroll <- data_full$F4A_DRH_DAYS
   
+  # Duration post-enrollment -- from diarrhea dictionary
+  # added 9/4/26
+  # check with liz
+  # only include people who fully completed? memory aid -- 1
+  # data has 0 through 14, pic in manuscript has 1 - 14, so verify dates w pre-enroll 
+  # pre-enroll includes enrollment date
+  data_full$duration_post_enroll <- ifelse(!is.na(data_full$F9_DRH_LAST) & data_full$F9_MEMORY_AID == 1, data_full$F9_DRH_LAST, NA)
+  
+  # Death -- in facility, at 60 day visit, overall
+  # data_full$death = overall (in facility + 60 day visit)
+  # data_full$died60 = 60 day visit
+  # data_full$diedhosp = died in hospital before discharge
+  
+  # visit health facility during follow up
+  # not quite same as rehosp 
+  # 7899 total == 1
+  data_full$visithf60 <- ifelse(data_full$F5_STATUS == 1,
+                                as.integer(
+                                  rowSums(
+                                    data_full[, c(
+                                      "F5_EXP_DRH_VISIT",
+                                      "F5_EXP_COU_VISIT",
+                                      "F5_EXP_DYS_VISIT",
+                                      "F5_EXP_FEVER_VISIT",
+                                      "F5_EXP_OTHR_VISIT",
+                                      "F5_EXP_OTHR2_VISIT"
+                                    )] == 1,
+                                    na.rm = TRUE
+                                  ) > 0 
+                                ), NA)
+  
   data_select <- data_full %>%
     select(child_id,
            case_id,
@@ -2178,6 +2249,8 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            sex,
            age,
            enr_haz,
+           enr_whz,
+           enr_waz,
            SITE,
            prim_caregiver_edu,
            num_hh_lt5,
@@ -2186,6 +2259,7 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            vomit,
            fever,
            duration_pre_enroll,
+           duration_post_enroll,
            who_dehyd,
            lsstools,
            safe_sanit,
@@ -2197,9 +2271,17 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            Shig_flex, 
            Shig_sonnei,
            rotavirus_attributable,
-           st_etec_attributable,
-           cryptosporidium_attributable,
+           noro_attributable,
            adenovirus_attributable,
+           sapovirus_attributable,
+           astro_attributable,
+           etec_attributable,
+           tepec_attributable,
+           cryptosporidium_attributable,
+           v_cholerae_attributable,
+           c_jejuni_coli_attributable,
+           salmonella_attributable,
+           st_etec_attributable,
            rota_detected,
            adeno_detected,
            etec_detected,
@@ -2239,16 +2321,28 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            e_bieneusi_new,
            giardia_new,
            EAEC_new,
+           v_cholerae_new,
+           salmonella_new,
+           c_jejuni_coli_new,
            followup_days,
            I_followup_days,
            I_followup_days_x_followup_days,
            hazdiff,
+           whzdiff,
            hazd60,
+           whzd60,
+           wazd60,
+           death,
+           died60, 
+           diedhosp,
+           visithf60,
            any_abx,
            who_abx,
            maybe_eff_abx,
            ineff_abx, 
-           all_abx) %>%
+           all_abx,
+           azithro,
+           cipro) %>%
     rename("site" = SITE,
            "shig_flex" = Shig_flex,
            "shig_sonnei" = Shig_sonnei)
@@ -2306,6 +2400,7 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
                         sex = "Sex",
                         age = "Age (months)",
                         enr_haz = "HAZ at enrollment",
+                        enr_whz = "WHZ at enrollment",
                         site = "Enrollment site",
                         ses_quintile = "SES quintile",
                         prim_caregiver_edu = "Education level of primary caregiver",
@@ -2359,6 +2454,8 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
                         maybe_eff_abx = "Recieved maybe effective antibiotics",
                         ineff_abx = "Recieved ineffective or no antibioitcs",
                         all_abx = "Type of antibiotics received",
+                        azithro = "Received azithromycin",
+                        cipro = "Received ciprofloxacin",
                         safe_water = "JMP Improved Water" ,
                         safe_sanit = "JMP Improved Sanitation")
   

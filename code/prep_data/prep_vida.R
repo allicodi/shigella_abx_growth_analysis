@@ -756,7 +756,13 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            'site' = SITE,
            'enr_haz' = BASE_HAZ,
            'hazd60' = END_HAZ,
+           'enr_whz' = BASE_WHZ,
+           'whzd60' = END_WHZ,
+           'enr_waz' = BASE_WAZ,
+           'wazd60' = END_WAZ,
            'hazdiff' = DELTA_HAZ,
+           'whzdiff' = DELTA_WHZ,
+           'wazdiff' = DELTA_WAZ,
            'education' = F4A_PRIM_SCHL,
            'followup_days' = DURDAYS,
            'num_hh_lt5' = F4A_YNG_CHILDREN,
@@ -790,6 +796,25 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   
   data$duration_pre_enroll <- data$F4A_DRH_DAYS
   
+  # Duration post-enrollment -- from diarrhea dictionary
+  # added 9/4/26
+  # check with liz
+  # only include people who fully completed? memory aid -- 1
+  # data has 0 through 14, pic in manuscript has 1 - 14, so verify dates w pre-enroll 
+  # pre-enroll includes enrollment date
+  data$duration_post_enroll <- ifelse(!is.na(data$F9_DRH_LAST) & data$F9_MEMORY_AID == 1, data$F9_DRH_LAST, NA)
+  
+  # Death -- in facility, at 60 day visit, overall
+  # already made in gems as follows:
+  # data_full$death = overall (in facility + 60 day visit)
+  # data_full$died60 = 60 day visit
+  # data_full$diedhosp = died in hospital before discharge
+  
+  data$death <- data$DEATH_IND
+  data$diedhosp <- ifelse(data$F4B_OUTCOME == 5, 1, 0)
+  data$died60 <- ifelse(data$death == 1 & data$diedhosp == 0, 1, 0) # don't have F5 var but based on dictionary can work backwards
+  
+  # can't make visit health facility during follow up bc missing F5 vars
   # Define Shigella
   data$tac_shig <- ifelse(data$TAC_SHIGELLA_EIEC < 27.9, 1, 0)
   
@@ -870,7 +895,15 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data$enr_haz <- ifelse(data$enr_haz < -6 | data$enr_haz > 6, NA, data$enr_haz)
   data$hazd60 <- ifelse(data$hazd60 < -6 | data$hazd60 > 6, NA, data$hazd60)
   
+  data$enr_whz <- ifelse(data$enr_whz < -6 | data$enr_whz > 6, NA, data$enr_whz)
+  data$whzd60 <- ifelse(data$whzd60 < -6 | data$whzd60 > 6, NA, data$whzd60)
+  
+  data$enr_waz <- ifelse(data$enr_waz < -6 | data$enr_waz > 6, NA, data$enr_waz)
+  data$wazd60 <- ifelse(data$wazd60 < -6 | data$wazd60 > 6, NA, data$wazd60)
+  
   data$hazdiff <- ifelse(is.na(data$enr_haz) | is.na(data$hazd60), NA, data$hazdiff)
+  data$whzdiff <- ifelse(is.na(data$enr_whz) | is.na(data$whzd60), NA, data$whzdiff)
+  data$wazdiff <- ifelse(is.na(data$enr_waz) | is.na(data$wazd60), NA, data$wazdiff)
   
   data$vom_days <- ifelse(is.na(data$vom_days), 0, data$vom_days)
   data$vom_freq <- ifelse(is.na(data$vom_freq), 0, data$vom_freq)
@@ -895,6 +928,14 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data$tac_rota <- ifelse(data$TAC_ROTAVIRUS < 32.6, 1, 0)
   data$tac_crypto <- ifelse(data$TAC_CRYPTO < 24.0, 1, 0)
   data$tac_adeno_4041 <- ifelse(data$TAC_ADENO4041 < 22.7, 1, 0)
+  data$tac_astro <- ifelse(data$TAC_ASTROVIRUS < 22.2, 1, 0)
+  data$tac_campyj <- ifelse(data$TAC_CAMPY < 15.4, 1, 0)
+  data$tac_cyclosporidium <- ifelse(data$TAC_CYCLO < 29.6, 1, 0)
+  data$tac_ehist <- ifelse(data$TAC_E_HISTOLYTICA < 32.8, 1, 0)
+  data$tac_norovirus_gii <- ifelse(data$TAC_NORO_GII < 23.4, 1, 0)
+  data$tac_salm <- ifelse(data$TAC_SALMONELLA < 30.7, 1, 0)
+  data$tac_tepec <- ifelse(data$TAC_TEPEC < 16.0, 1, 0)
+  data$tac_vchol <- ifelse(data$TAC_V_CHOLERAE < 33.8, 1, 0)
   
   # detected
   data$rota_detected <- ifelse(data$TAC_ROTAVIRUS < 35, 1, 0)
@@ -920,13 +961,17 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data$adeno_new <- (35 - data$TAC_ADENO4041) / 3.322
   # data$etec <- (35 - data$TAC_ST_ETEC) / 3.322
   data$astro_new <- (35 - data$TAC_ASTROVIRUS) / 3.322
-  data$noro_new <- (35 - data$TAC_NORO_GII) / 3.322
+  data$noro_gii_new <- (35 - data$TAC_NORO_GII) / 3.322
   data$tepec_new <- (35 - data$TAC_TEPEC) / 3.322
   data$campy_new <- (35 - data$TAC_CAMPY_ANY) / 3.322
+  data$campy_j_new <- (35 - data$TAC_CAMPY) / 3.322
   data$sapo_new <- (35 - data$TAC_SAPOVIRUS) / 3.322
   data$giardia_new <- (35 - data$TAC_GIARDIA) / 3.322
   data$eaec_new <- (35 - data$TAC_EAEC) / 3.322
   data$e_bieneusi_new <- (35 - data$TAC_E_BIENEUSI) / 3.322
+  
+  data$v_cholerae_new <- (35 - data$TAC_V_CHOLERAE) / 3.322
+  data$salmonella_new <- (35 - data$TAC_SALMONELLA) / 3.322
   
   # Antibiotics
   # WHO approved = azithromycin, ciprofloxacin, ceftriaxone, pivmecillinam
@@ -943,6 +988,26 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
     1, 0
   )
   
+  data$azithro <- ifelse(
+    rowSums(cbind(
+      data$F4B_TRT_GIVE_AZI, data$F4B_TRT_PRES_AZI
+    ) == 1, na.rm = TRUE) > 0,
+    1, 0
+  )
+  
+  data$cipro <- ifelse(
+    rowSums(cbind(
+      data$F4B_TRT_GIVE_CPNR, data$F4B_TRT_PRES_CPNR
+    ) == 1, na.rm = TRUE) > 0, 
+    1, 0
+  )
+  
+  data$ceft <- ifelse(
+    rowSums(cbind(
+      data$F4B_TRT_GIVE_CEF, data$F4B_TRT_PRES_CEF
+    ) == 1, na.rm = TRUE) > 0,
+    1, 0
+  )
   
   data$maybe_eff_abx <- ifelse(
     rowSums(cbind(
@@ -1084,6 +1149,12 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            enr_haz,
            hazd60,
            hazdiff,
+           enr_whz,
+           whzd60,
+           whzdiff,
+           enr_waz,
+           wazd60,
+           wazdiff,
            education,
            education_bin,
            followup_days,
@@ -1099,6 +1170,7 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            dehydr,
            dysentery,
            duration_pre_enroll,
+           duration_post_enroll,
            safe_water,
            safe_sanit,
            shigella_culture_positive,
@@ -1121,6 +1193,13 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            tac_st_etec,
            tac_crypto,
            tac_adeno_4041,
+           tac_norovirus_gii,
+           tac_astro,
+           tac_tepec,
+           tac_crypto,
+           tac_vchol,
+           tac_salm,
+           tac_campyj,
            rota_detected,
            adeno_4041_detected,
            etec_detected,
@@ -1140,19 +1219,28 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
            crypto_new,
            adeno_new,
            astro_new,
-           noro_new,
+           noro_gii_new,
            tepec_new,
            campy_new,
+           campy_j_new,
            sapo_new,
            etec_new,
            giardia_new,
            e_bieneusi_new,
            eaec_new,
+           v_cholerae_new,
+           salmonella_new,
+           death,
+           died60,
+           diedhosp,
            maybe_eff_abx,
            ineff_abx,
            no_abx,
            all_abx,
-           any_abx) %>%
+           any_abx,
+           azithro,
+           cipro,
+           ceft) %>%
     rename("shig_flex" = SHIG_FLEX,
            "shig_sonnei" = SHIG_SONNEI) %>%
     set_variable_labels(child_id = "Child ID",
@@ -1215,7 +1303,10 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
                         who_abx = "WHO approved antibiotics",
                         maybe_eff_abx = "Maybe effective antibiotics",
                         ineff_abx = "Ineffective or no antibiotics",
-                        any_abx = "Any antibiotics")
+                        any_abx = "Any antibiotics",
+                        azithro = "Received azithromycin",
+                        cipro = "Received ciprofloxacin",
+                        ceft = "Received ceftriaxone")
   
   return(data)
   

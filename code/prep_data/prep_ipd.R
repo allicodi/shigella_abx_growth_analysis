@@ -987,7 +987,7 @@ if(full){
 #                           CASE-CONTROL.                           #
 #####################################################################
 
-case_def <- "culture_shig" # case definitions: tac_or_culture_shig, tac_shig, culture_shig, all_diar
+case_def <- "all_diar" # case definitions: tac_or_culture_shig, tac_shig, culture_shig, all_diar
 
 gems_data <- readRDS(here::here(paste0("data/gems_data/gems_case_control_", case_def, ".Rds")))
 maled_data <- readRDS(here::here(paste0("data/maled_data/maled_case_control_", case_def, ".Rds")))
@@ -1041,7 +1041,7 @@ levels(gems_data$site) <- c("The_Gambia_gems",
 gems_data$edu_bin <- gems_data$prim_caregiver_edu_bin
 
 gems_data$imp_water <- ifelse(gems_data$safe_water %in% c("Safely managed", "Basic"), 1, 0)
-gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely mangaed and basic"), 1, 0) # fixed typo 4/10/26
+gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely managed and basic"), 1, 0) # fixed typo 4/10/26
 
 # VIDA
 vida_data <- vida_data %>%
@@ -1528,6 +1528,7 @@ combo_data <- combo_data %>%
 # add suffix only for 2-level guideline/bin_abx analysis
 abx_suffix <- if_else(MALED_severity_pre == "guideline", "_bin_abx", "")
 
+
 if(msd){
   saveRDS(
     combo_data,
@@ -1568,3 +1569,1159 @@ if(msd){
 #   saveRDS(combo_data, here::here(paste0("data/ipd_data/ipd_data_case_control_", case_def, ".Rds")))
 # }
 # 
+
+#####################################################################
+#                           COMBINED                                #
+#####################################################################
+
+case_def <- "all_diar" # case definitions: tac_or_culture_shig, tac_shig, culture_shig, all_diar
+
+gems_data <- readRDS(here::here(paste0("data/gems_data/gems_case_control_", case_def, ".Rds")))
+# new all control periods for maled
+maled_data <- readRDS(here::here(paste0("data/maled_data/maled_case_control_co_etiology.Rds"))) 
+vida_data <- readRDS(here::here(paste0("data/vida_data/vida_case_control_", case_def, ".Rds")))
+
+# ABCD and EFGH -- no controls
+abcd_data <- readRDS(here::here("data/abcd_data/abcd_data_full.Rds"))
+efgh_data <- readRDS(here::here("data/efgh_data/efgh_data_full.Rds"))
+
+# Add column with study name to each dataset
+gems_data$study <- "GEMS"
+vida_data$study <- "VIDA"
+maled_data$study <- "MALED"
+abcd_data$study <- "ABCD"
+efgh_data$study <- "EFGH"
+
+# Indicator for controls (or control periods) available
+gems_data$case_control <- 1
+vida_data$case_control <- 1
+maled_data$case_control <- 1
+abcd_data$case_control <- 0
+efgh_data$case_control <- 0
+
+msd <- TRUE # subset MAL-ED to MSD cases
+lsd <- FALSE
+
+MALED_severity_pre <- "guideline" # (check on this? for co-etiology meta-analysis. bc we care about no/ineff/possibly)
+
+# "possibly" = 3-level abx analysis; use _p MAL-ED severity vars; existing file names
+# "guideline" = 2-level guideline abx analysis; use _g MAL-ED severity vars; add _bin_abx to file names
+
+# MAL-ED remove LSD cases & matched controls 
+# maled_LSD_cases <- maled_data$case_sid[which(maled_data$case == 1 & maled_data$MSD == 0)]
+# maled_data <- maled_data[-which(maled_data$case_sid %in% maled_LSD_cases),]
+
+# ------------------------------------------------------------------------------
+#                                 COVARIATES
+# ------------------------------------------------------------------------------
+
+################################################################################
+# 1. Sex (sex) - Male = 0, Female = 1
+# 2. Age in months (age)
+# 3. SES quintile (ses_quintile)
+# 4. Baseline HAZ (enr_haz)
+# 5. Baseline WHZ (enr_whz)
+# 6. Baseline WAZ (enr_waz)
+# 7. Days between episode and follow-up (followup_days) -- I_followup_days & I_followup_days_x_followup_days
+# 8. Site (site) - but make it a factor for each study site individually?
+
+# Missing in some (fill in with 0)
+# 7. Water + sanitation score (missing in ABCD) (imp_water, imp_sanit)
+# 8. Number of children in household < 5 (missing in MAL-ED) (num_hh_lt5)
+# 9. Primary caregiver education (missing in ABCD) (edu_bin) 
+################################################################################
+
+# ABCD
+abcd_data <- abcd_data %>%
+  mutate(imp_water = 0,
+         imp_sanit = 0,
+         edu_bin = 0) %>%
+  rename('sex' = dy1_ant_sex,
+         'age' = agemchild,
+         'ses_quintile' = an_ses_quintile,
+         'enr_haz' = lfazscore,
+         'enr_whz' = wflzscore,
+         'enr_waz' = wfazscore,
+         'I_followup_days' = I_an_d90_timing,
+         'I_followup_days_x_followup_days' = I_an_d90_timing_x_an_d90_timing,
+         'num_hh_lt5' = an_tothhlt5) 
+
+abcd_data$sex <- ifelse(abcd_data$sex == "Female", 1, 0)
+levels(abcd_data$site) <- c("Bangladesh_abcd", 
+                            "Kenya_abcd", 
+                            "Malawi_abcd", 
+                            "Mali_abcd", 
+                            "India_abcd", 
+                            "Tanzania_abcd", 
+                            "Pakistan_abcd")
+
+# EFGH
+efgh_data <- efgh_data %>%
+  rename('age' = enr_age_months,
+         'ses_quintile' = final_quintile_site,
+         'site' = enroll_site,
+         'I_followup_days' = I_mo3_days,
+         'I_followup_days_x_followup_days' = I_mo3_days_x_mo3_days,
+         'imp_sanit' = imp_toi,
+         'num_hh_lt5' = enroll_ai_num_child,
+         'edu_bin' = moth_ed_bin)
+
+efgh_data$sex <- ifelse(efgh_data$sex == "Female", 1, 0)
+levels(efgh_data$site) <- c("Bangladesh_efgh",
+                            "Kenya_efgh",
+                            "Malawi_efgh",
+                            "Mali_efgh",
+                            "Pakistan_efgh",
+                            "Peru_efgh",
+                            "The_Gambia_efgh")
+
+# GEMS 
+# naming conventions all match
+gems_data$sex <- ifelse(gems_data$sex == "female", 1, 0)
+levels(gems_data$site) <- c("The_Gambia_gems",
+                            "Mali_gems",
+                            "Mozambique_gems",
+                            "Kenya_gems",
+                            "India_gems",
+                            "Bangladesh_gems",
+                            "Pakistan_gems")
+
+gems_data$edu_bin <- gems_data$prim_caregiver_edu_bin
+
+gems_data$imp_water <- ifelse(gems_data$safe_water %in% c("Safely managed", "Basic"), 1, 0)
+gems_data$imp_sanit <- ifelse(gems_data$safe_sanit %in% c("Safely managed and basic"), 1, 0) # fixed typo 4/10/26
+
+# VIDA
+vida_data <- vida_data %>%
+  rename('age' = agemchild,
+         'edu_bin' = education_bin)
+
+vida_data$sex <- ifelse(vida_data$sex == "Female", 1, 0)
+levels(vida_data$site) <- c("The_Gambia_vida",
+                            "Mali_vida",
+                            "Kenya_vida")
+
+vida_data$imp_water <- ifelse(vida_data$safe_water %in% c("Safely managed", "Basic"), 1, 0)
+vida_data$imp_sanit <- ifelse(vida_data$safe_sanit %in% c("Safely managed and basic"), 1, 0)
+
+# MAL-ED
+maled_data <- maled_data %>%
+  rename('age' = agemonths,
+         'ses_quintile' = wami_quintile,
+         'enr_haz' = baseline_haz,
+         'enr_whz' = baseline_whz,
+         'enr_waz' = baseline_waz,
+         'imp_water' = drinkimp,
+         'imp_sanit' = sanitimp,
+         'edu_bin' = mated_bin)
+
+maled_data$sex <- ifelse(maled_data$sex == "female", 1, 0)
+levels(maled_data$site) <- c("Bangladesh_maled",
+                             "Brazil_maled",
+                             "India_maled",
+                             "Nepal_maled",
+                             "Peru_maled",
+                             "Pakistan_maled",
+                             "SouthAfrica_maled",
+                             "Tanzania_maled")
+
+# Not collected -- set all to 1
+maled_data$num_hh_lt5 <- 1
+
+# ------------------------------------------------------------------------------
+#                                 SEVERITY
+# ------------------------------------------------------------------------------
+
+################################################################################
+# 1. Dysentery (0 = no, 1 = yes) (dysentery)
+# 2. Vomiting during episode (0 = no, 1 = yes) (any_vom)
+# 3. Dehydration level (Factor with levels No dehydration, Some dehydration, Severe dehydration) (dehyd_level)
+# 4. Max number of loose stools (categorical) (Factor with levels 6 or less, 7 to 10, Over 10) (except vida is really 3 to 5, 6 to 10, over 10) (lsstools)
+# 5. Duration of diarrhea pre-abx (duration_pre_enroll)
+
+# 6. Fever during episode (0 = no, 1 = yes) (any_fev)
+################################################################################
+
+# ABCD
+abcd_data <- abcd_data %>%
+  mutate(dysentery = 0,
+         any_vom = if_else(dy1_scrn_vomitall == "Yes", 1, 0),
+         any_fev = 0,
+         lsstools = if_else(dy1_scrn_lstools <=6, "6 or less per day",
+                            if_else(dy1_scrn_lstools >= 7 & dy1_scrn_lstools <= 10, "7 to 10 per day", "Over 10 per day")),
+         duration_pre_enroll = dy1_scrn_diardays + 1) %>%
+  rename('dehyd_level' = dy1_scrn_dehydr, 
+         'MSD' = gems_msd)
+
+# EFGH
+efgh_data <- efgh_data %>%
+  mutate(any_vom = if_else(enroll_diar_vom_num > 0, 1, 0),
+         lsstools = if_else(enroll_diar_loose_num <= 6, "6 or less per day",
+                            if_else(enroll_diar_loose_num >= 7 & enroll_diar_loose_num <= 10, "7 to 10 per day", "Over 10 per day")),
+         MSD = if_else(gems_msd == "Less-severe", 0, 1)) %>%
+  rename('dysentery' = enroll_diar_blood,
+         'any_fev' = enroll_diar_fever,
+         'dehyd_level' = enroll_cond_dehyd)
+
+# GEMS
+gems_data <- gems_data %>%
+  rename('any_vom' = vomit,
+         'any_fev' = fever,
+         'dehyd_level' = who_dehyd)
+
+# VIDA
+vida_data <- vida_data %>%
+  mutate(any_vom = if_else(vom_days > 0, 1, 0),
+         dehyd_level = if_else(dehydr == "None", "No dehydration", dehydr)) %>%
+  rename('any_fev' = fever)
+
+vida_data$lsstools <- ifelse(vida_data$lsstools == "3 stools" | vida_data$lsstools == "4 to 5 stools", "6 or less per day",
+                             ifelse(vida_data$lsstools == "6 to 10 stools", "7 to 10 per day", "Over 10 per day"))
+
+# MAL-ED
+if(MALED_severity_pre == "possibly"){
+  maled_data <- maled_data %>%
+    mutate(any_vom = if_else(daysvomit_p > 0, 1, 0),
+           dehyd_level = if_else(dehyd_p == "None", "No dehydration", dehyd_p),
+           lsstools = if_else(lsstools_p <= 6, "6 or less per day",
+                              if_else(lsstools_p >= 7 & lsstools_p <= 10,
+                                      "7 to 10 per day", "Over 10 per day"))) %>%
+    rename('any_fev' = fever_p,
+           'duration_pre_enroll' = duration_pre_abx_p,
+           'dysentery' = dysentery_p)
+} else if(MALED_severity_pre == "guideline"){
+  maled_data <- maled_data %>%
+    mutate(any_vom = if_else(daysvomit_g > 0, 1, 0),
+           dehyd_level = if_else(dehyd_g == "None", "No dehydration", dehyd_g),
+           lsstools = if_else(lsstools_g <= 6, "6 or less per day",
+                              if_else(lsstools_g >= 7 & lsstools_g <= 10,
+                                      "7 to 10 per day", "Over 10 per day"))) %>%
+    rename('any_fev' = fever_g,
+           'duration_pre_enroll' = duration_pre_abx_g,
+           'dysentery' = dysentery_g)
+} else{
+  stop("MALED_severity_pre must be guideline or possibly")
+}
+
+# ------------------------------------------------------------------------------
+#                             PATHOGEN QUANTITY
+# ------------------------------------------------------------------------------
+
+################################################################################
+# Final list / naming conventions:
+
+# "shigella_new"
+# "rotavirus_new"
+# "adenovirus_new"
+# "st_etec_new"
+# "etec_new"
+# "cryptosporidium_new" 
+# "astrovirus_new"
+# "norovirus_new"
+# "tepec_new"
+# "campylobacter_new"
+# "sapovirus_new"
+# "giardia_new"
+# "e_bieneusi_new"
+# "eaec_new"
+################################################################################
+
+# ABCD using conventions above
+
+abcd_data <- abcd_data %>%
+  rename('shigella_tac_attr' = shigella_likely,
+         'rotavirus_tac_attr' = rotavirus_likely,
+         'norovirus_gii_tac_attr' = norovirus_gii_likely,
+         'adenovirus_tac_attr' = adenovirus_likely,
+         'sapovirus_tac_attr' = sapovirus_likely,
+         'astrovirus_tac_attr' = astrovirus_likely,
+         'st_etec_tac_attr' = st_etec_likely, # look to see if we have lt etec in raw data
+         'tepec_tac_attr' = tepec_likely,
+         'cryptosporidium_tac_attr' = cryptosporidium_likely,
+         'v_cholerae_tac_attr' = v_cholerae_likely,
+         'salmonella_tac_attr' = salmonella_likely,
+         'c_jejuni_coli_tac_attr' = c_jejuni_likely,
+         'c_jejuni_coli_new' = c_jejuni_new) %>%
+  rowwise() %>%
+  mutate(
+    co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
+  ) %>%
+  mutate(
+    shigella_flex = NA,
+    shigella_sonnei = NA
+  ) %>%
+  ungroup()
+
+# EFGH
+# is it okay to set campylobacter_new = c_jejuni_new?
+
+efgh_data <- efgh_data %>%
+  rename(# Pathogen quantities
+    'etec_new' = ETEC_new,
+    'tepec_new' = tEPEC_new,
+    'eaec_new' = EAEC_new,
+    'campylobacter_new' = c_jejuni_new,
+    # Pathogen attributable
+    'shigella_tac_attr' = tac_shigella_attributable,
+    'rotavirus_tac_attr' = rotavirus_attributable,
+    'norovirus_gii_tac_attr' = norovirus_gii_attributable,
+    'adenovirus_tac_attr' = adenovirus_40_41_attributable,
+    'sapovirus_tac_attr' = sapovirus_attributable,
+    'astrovirus_tac_attr' = astrovirus_attributable,
+    'st_etec_tac_attr' = ST.ETEC_attributable, # look to see if we have lt etec in raw data
+    'tepec_tac_attr' = tEPEC_attributable,
+    'cryptosporidium_tac_attr' = cryptosporidium_attributable,
+    'v_cholerae_tac_attr' = v_cholerae_attributable,
+    'salmonella_tac_attr' = salmonella_attributable,
+    'c_jejuni_coli_tac_attr' = c_jejuni_coli_attributable) %>%
+  rowwise() %>%
+  mutate(
+    c_jejuni_coli_new = campylobacter_new, # same as general campylobacter
+    co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
+  ) %>%
+  ungroup()
+
+# GEMS
+# in code defined ETEC attributable and detected as ST or LT - not actually a TAC quantity for ETEC so can't make a transformed ETEC
+gems_data <- gems_data %>%
+  rename('cryptosporidium_new' = crypto_new,
+         'astrovirus_new' = astro_new,
+         'norovirus_gii_new' = noro_new,
+         'campylobacter_new' = campy_new,
+         'sapovirus_new' = sapo_new,
+         'eaec_new' = EAEC_new,
+         'shigella_tac_attr' = shigella_attributable_tac,
+         'rotavirus_tac_attr' = rotavirus_attributable,
+         'norovirus_gii_tac_attr' = noro_attributable,
+         'adenovirus_tac_attr' = adenovirus_attributable,
+         'sapovirus_tac_attr' = sapovirus_attributable,
+         'astrovirus_tac_attr' = astro_attributable,
+         'etec_tac_attr' = etec_attributable, 
+         'tepec_tac_attr' = tepec_attributable,
+         'cryptosporidium_tac_attr' = cryptosporidium_attributable,
+         'v_cholerae_tac_attr' = v_cholerae_attributable,
+         'c_jejuni_coli_tac_attr' = c_jejuni_coli_attributable,
+         'salmonella_tac_attr' = salmonella_attributable,
+         'st_etec_tac_attr' = st_etec_attributable) %>%
+  rowwise() %>%
+  mutate(
+    co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
+  ) %>%
+  rename(
+    'shigella_flex' = shig_flex,
+    'shigella_sonnei' = shig_sonnei
+  ) %>%
+  ungroup()
+
+# VIDA
+# in data there's a binary etec alone and various TAC ETEC but unclear which if any are okay
+vida_data <- vida_data %>%
+  mutate(sapovirus_tac_attr = if_else(35 - (sapo_new * 3.322 ) < 21.9, 1, 0)) %>%
+  rename('adenovirus_new' = adeno_new,
+         'astrovirus_new' = astro_new,
+         'norovirus_gii_new' = noro_gii_new,
+         'campylobacter_new' = campy_new,
+         'sapovirus_new' = sapo_new,
+         'cryptosporidium_new' = crypto_new,
+         'c_jejuni_coli_new' = campy_j_new,
+         'shigella_tac_attr' = tac_shig,
+         'rotavirus_tac_attr' = tac_rota,
+         'norovirus_gii_tac_attr' = tac_norovirus_gii,
+         'adenovirus_tac_attr' = tac_adeno_4041,
+         'astrovirus_tac_attr' = tac_astro,
+         'etec_tac_attr' = tac_st_etec, # look to see if we have lt etec in raw data
+         'tepec_tac_attr' = tac_tepec,
+         'cryptosporidium_tac_attr' = tac_crypto,
+         'v_cholerae_tac_attr' = tac_vchol,
+         'salmonella_tac_attr' = tac_salm,
+         'c_jejuni_coli_tac_attr' = tac_campyj,
+         'st_etec_tac_attr' = tac_st_etec) %>%
+  rowwise() %>%
+  mutate(
+    campylobacter_new = c_jejuni_coli_new,
+    co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
+  ) %>%
+  rename(
+    'shigella_flex' = shig_flex,
+    'shigella_sonnei' = shig_sonnei
+  ) %>%
+  ungroup()
+
+# MAL-ED
+maled_data <- maled_data %>%
+  rename('adenovirus_new' = adenovirus_40_41_new,
+         'etec_new' = ETEC_new,
+         'tepec_new' = tEPEC_new,
+         'campylobacter_new' = campylobacter_pan_new,
+         'shigella_tac_attr' = tac_shigella_attributable,
+         'rotavirus_tac_attr' = rotavirus_attributable,
+         'norovirus_gii_tac_attr' = noro_gii_attributable,
+         'adenovirus_tac_attr' = adenovirus_attributable,
+         'sapovirus_tac_attr' = sapo_attributable,
+         'astrovirus_tac_attr' = astro_attributable,
+         'etec_tac_attr' = st_etec_attributable, # look to see if we have lt etec in raw data
+         'tepec_tac_attr' = tepec_attributable,
+         'cryptosporidium_tac_attr' = crypto_attributable,
+         'v_cholerae_tac_attr' = v_cholerae_attributable,
+         'salmonella_tac_attr' = salmonella_attributable,
+         'c_jejuni_coli_tac_attr' = campylobacter_jejuni_coli_attributable) %>%
+  rowwise() %>%
+  mutate(
+    st_etec_tac_attr = etec_tac_attr, 
+    co_etiology = if_else(any(c_across(ends_with("_tac_attr")) == 1), 1, 0)
+  ) %>%
+  rename(
+    'shigella_flex' = S_flexneri,
+    'shigella_sonnei' = S_sonnei
+  ) %>%
+  ungroup()
+
+# Check no attributable etiology variable pathogens to include
+# also v cholera, e histolytica, salmonella, isospora, aeromonas....
+# ^^ it's ok if slightly different def of no_etiology
+
+# ------------------------------------------------------------------------------
+#                             SHIGELLA ATTR
+# ------------------------------------------------------------------------------
+
+################################################################################
+# 1. TAC or culture attributable shigella (shig_attr)
+# 2. Culture only Shigella (culture_shig_attr) (missing for ABCD)
+# 3. TAC only Shigella (tac_shig_attr)
+
+# Note we use 'case' variable instead but should already be 'case' for all
+# this is just getting a uniform variable for tac_or_culture shigella and culture shigella
+################################################################################
+
+# ABCD - note this is TAC only
+abcd_data <- abcd_data %>%
+  mutate('shig_attr' = shigella_tac_attr,
+         'tac_shig_attr' = shigella_tac_attr) %>%
+  mutate(culture_shig_attr = rep(NA, nrow(abcd_data)))
+
+# EFGH
+efgh_data <- efgh_data %>%
+  rename('shig_attr' = positive_tac_or_culture,
+         'culture_shig_attr' = culture_shigella_positive) %>%
+  mutate('tac_shig_attr' = shigella_tac_attr)
+
+# GEMS
+gems_data <- gems_data %>%
+  rename('shig_attr' = shigella_attributable,
+         'culture_shig_attr' = shigella_culture_pos) %>%
+  mutate('tac_shig_attr' = shigella_tac_attr)
+
+# VIDA
+vida_data <- vida_data %>%
+  rename('shig_attr' = shigella_tac_or_culture,
+         'culture_shig_attr' = shigella_culture_positive) %>%
+  mutate('tac_shig_attr' = shigella_tac_attr)
+
+# MAL-ED
+maled_data <- maled_data %>%
+  rename('shig_attr' = shigella_attributable,
+         'culture_shig_attr' = culture_shigella) %>%
+  mutate('tac_shig_attr' = shigella_tac_attr)
+
+################################################################################
+# 1. Type of antibiotic received (all_abx) 
+#.    (factor 3 levels - 0 = No or ineffective antibiotcs, 1 = Maybe effective antibiotics, 2 = WHO recommended antibiotics)
+
+# NEW for Jing's project -- add in azithromycin, ciprofloxacin, ceftriaxone separately
+################################################################################
+
+# ABCD
+abcd_data$all_abx <- ifelse(abcd_data$an_grp_01 == 1, 2, 0)
+abcd_data$guideline_abx <- abcd_data$an_grp_01
+abcd_data$azithromycin <- abcd_data$an_grp_01
+abcd_data$ciprofloxacin <- NA
+abcd_data$ceftriaxone <- NA
+
+# EFGH 
+efgh_data$all_abx <- ifelse(efgh_data$all_abx == "No or ineffective antibiotics", 0,
+                            ifelse(efgh_data$all_abx == "Possibly effective antibiotics", 1, 2))
+efgh_data$guideline_abx <- efgh_data$who_rec_abx
+# individual abx added
+
+# GEMS
+gems_data$all_abx <- ifelse(gems_data$all_abx == "No/Ineffective abx", 0,
+                            ifelse(gems_data$all_abx == "Maybe effective abx", 1, 2))
+gems_data$guideline_abx <- gems_data$who_abx
+gems_data <- gems_data %>%
+  mutate(ceftriaxone = NA) %>%
+  rename("azithromycin" = azithro,
+         "ciprofloxacin" = cipro)
+
+# VIDA
+vida_data$all_abx <- ifelse(vida_data$all_abx == "Ineffective or no abx", 0,
+                            ifelse(vida_data$all_abx == "Maybe effective abx", 1, 2))
+vida_data$guideline_abx <- vida_data$who_abx
+vida_data <- vida_data %>%
+  rename("azithromycin" = azithro,
+         "ciprofloxacin" = cipro,
+         "ceftriaxone" = ceft)
+
+# MAL-ED
+maled_data$all_abx <- ifelse(maled_data$all_abx == "No or ineffective antibiotics", 0,
+                             ifelse(maled_data$all_abx == "Possibly effective antibiotics", 1, 2))
+maled_data$guideline_abx <- maled_data$who_abx
+
+# No explicit individual abx -- use azithro macrolides, cipro fluoquines
+maled_data <- maled_data %>%
+  mutate(azithromycin = macrolide,
+         ciprofloxacin = fluoro,
+         ceftriaxone = NA)
+
+# ------------------------------------------------------------------------------
+#                                    OUTCOME
+# ------------------------------------------------------------------------------
+
+################################################################################
+# 1. Followup HAZ (final_haz)
+# 2. Followup WHZ (final_whz)
+# 3. Stunting (final_stunt)
+# 4. Death (final_death)
+# 5. Rehospitalization (final_rehosp)
+# 6. Death or rehospitalization ** (final_death_rehosp)
+# 7. Duration ** 
+################################################################################
+
+# ABCD
+abcd_data <- abcd_data %>%
+  rename('final_haz' = lazd90,
+         'final_whz' = wlzd90,
+         'final_waz' = wazd90,
+         'final_stunt' = stunting_bin,
+         'final_death' = an_death90,
+         'final_rehosp' = an_hosp90_yn,
+         'final_death_rehosp' = an_hosp90death
+  )  %>%
+  mutate(final_duration = NA)
+
+# EFGH
+efgh_data <- efgh_data %>%
+  rename('final_haz' = mo3_haz,
+         'final_whz' = mo3_whz,
+         'final_waz' = mo3_waz,
+         'final_death' = death90,
+         'final_rehosp' = hosp90,
+         'final_death_rehosp' = an_hosp90death,
+         'final_duration' = duration_post_enroll) %>%
+  mutate(final_stunt = if_else(final_haz < -2, 1, 0))
+
+# GEMS
+gems_data <- gems_data %>%
+  rename('final_haz' = hazd60,
+         'final_whz' = whzd60,
+         'final_waz' = wazd60,
+         'final_death' = death,
+         'final_duration' = duration_post_enroll) %>%
+  mutate(final_stunt = if_else(final_haz < -2, 1, 0),
+         final_rehosp = NA,
+         final_death_rehosp = NA)
+
+# VIDA
+vida_data <- vida_data %>%
+  rename('final_haz' = hazd60,
+         'final_whz' = whzd60,
+         'final_waz' = wazd60,
+         'final_death' = death,
+         'final_duration' = duration_post_enroll) %>%
+  mutate(final_stunt = if_else(final_haz < -2, 1, 0),
+         final_rehosp = NA,
+         final_death_rehosp = NA)
+
+# MAL-ED
+maled_data <- maled_data %>%
+  rename('final_haz' = month3_haz,
+         'final_whz' = month3_whz,
+         'final_waz' = month3_waz,
+         'final_rehosp' = rehosp90,
+         'final_duration' = duration_post_abx_g) %>%
+  mutate(final_stunt = if_else(final_haz < -2, 1, 0),
+         final_death = NA,
+         final_death_rehosp = NA)
+
+# ------------------------------------------------------------------------------
+#                             PATIENT ID VARIABLES
+# ------------------------------------------------------------------------------
+
+################################################################################
+# 1. Unique patient identifier (first_id)
+# 2. Identifier for episode (= first unique patient identifier) (child_id)
+# 3. Identifier for case (case_id, if case case_id = child_id)
+################################################################################
+
+# ABCD - no re-enrollment
+abcd_data <- abcd_data %>%
+  mutate(child_id = pid,
+         case_id = pid) %>%
+  rename('first_id' = pid)
+
+# EFGH - pid is identifier for episode (fixed in IPD data 1/27/26)
+efgh_data <- efgh_data %>%
+  mutate(child_id = pid,
+         case_id = pid)
+
+# GEMS - done - make character
+gems_data$child_id <- as.character(gems_data$child_id)
+gems_data$first_id <- as.character(gems_data$first_id)
+gems_data$case_id <- as.character(gems_data$case_id)
+
+# VIDA - done - make character
+vida_data$child_id <- as.character(vida_data$child_id)
+vida_data$first_id <- as.character(vida_data$first_id)
+vida_data$case_id <- as.character(vida_data$case_id)
+
+# MAL-ED- done
+# case_ids NA unless case itself because no longer matching
+
+# ------------------------------------------------------------------------------
+#                             Select and combine
+# ------------------------------------------------------------------------------
+
+# "shigella_new"
+# "rotavirus_new"
+# "adenovirus_new"
+# "st_etec_new"
+# "etec_new"
+# "cryptosporidium_new" 
+# "astrovirus_new"
+# "norovirus_new"
+# "tepec_new"
+# "campylobacter_new"
+# "sapovirus_new"
+# "giardia_new"
+# "e_bieneusi_new"
+# "eaec_new"
+
+# GEMS
+gems_data <- gems_data %>%
+  select(study,
+         case_control,
+         first_id,
+         child_id,
+         case_id, 
+         case, 
+         shig_attr,
+         culture_shig_attr,
+         tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
+         all_abx,
+         guideline_abx,
+         azithromycin,
+         ciprofloxacin,
+         ceftriaxone,
+         sex,
+         age,
+         ses_quintile,
+         enr_haz,
+         enr_whz,
+         enr_waz,
+         site,
+         edu_bin,
+         num_hh_lt5,
+         imp_water,
+         imp_sanit,
+         I_followup_days,
+         I_followup_days_x_followup_days,
+         dysentery,
+         any_vom,
+         any_fev,
+         dehyd_level,
+         lsstools,
+         duration_pre_enroll,
+         shigella_new,
+         rotavirus_new,
+         adenovirus_new,
+         st_etec_new,
+         etec_new,
+         cryptosporidium_new,
+         astrovirus_new,
+         norovirus_gii_new,
+         tepec_new,
+         campylobacter_new,
+         sapovirus_new,
+         giardia_new,
+         e_bieneusi_new,
+         eaec_new,
+         v_cholerae_new,
+         salmonella_new,
+         c_jejuni_coli_new,
+         shigella_tac_attr,
+         rotavirus_tac_attr,
+         norovirus_gii_tac_attr,
+         adenovirus_tac_attr, 
+         sapovirus_tac_attr,
+         astrovirus_tac_attr,
+         tepec_tac_attr,
+         cryptosporidium_tac_attr, 
+         v_cholerae_tac_attr, 
+         salmonella_tac_attr,
+         c_jejuni_coli_tac_attr,
+         st_etec_tac_attr,
+         final_haz,
+         final_whz, 
+         final_waz,
+         final_stunt,
+         final_death,
+         final_rehosp,
+         final_death_rehosp,
+         final_duration)
+
+# VIDA
+vida_data <- vida_data %>%
+  select(study,
+         case_control,
+         first_id,
+         child_id,
+         case_id, 
+         case, 
+         shig_attr,
+         culture_shig_attr,
+         tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
+         all_abx,
+         guideline_abx,
+         azithromycin,
+         ciprofloxacin,
+         ceftriaxone,
+         sex,
+         age,
+         ses_quintile,
+         enr_haz,
+         enr_whz,
+         enr_waz,
+         site,
+         edu_bin,
+         num_hh_lt5,
+         imp_water,
+         imp_sanit,
+         I_followup_days,
+         I_followup_days_x_followup_days,
+         dysentery,
+         any_vom,
+         any_fev,
+         dehyd_level,
+         lsstools,
+         duration_pre_enroll,
+         shigella_new,
+         rotavirus_new,
+         adenovirus_new,
+         st_etec_new,
+         etec_new,
+         cryptosporidium_new,
+         astrovirus_new,
+         norovirus_gii_new,
+         tepec_new,
+         campylobacter_new,
+         sapovirus_new,
+         giardia_new,
+         e_bieneusi_new,
+         eaec_new,
+         v_cholerae_new,
+         salmonella_new,
+         c_jejuni_coli_new,
+         shigella_tac_attr,
+         rotavirus_tac_attr,
+         norovirus_gii_tac_attr,
+         adenovirus_tac_attr, 
+         sapovirus_tac_attr,
+         astrovirus_tac_attr,
+         tepec_tac_attr,
+         cryptosporidium_tac_attr, 
+         v_cholerae_tac_attr, 
+         salmonella_tac_attr,
+         c_jejuni_coli_tac_attr,
+         st_etec_tac_attr,
+         final_haz,
+         final_whz, 
+         final_waz,
+         final_stunt,
+         final_death,
+         final_rehosp,
+         final_death_rehosp,
+         final_duration)
+
+#  SUBSET TO MSD MAL-ED
+if(msd){
+  # Get IDs corresponding to MSD cases
+  maled_data_msd_caseids <- unique(maled_data$case_id[which(maled_data$MSD == 1)])
+  
+  # If case, only keep MSD case
+  # Keep all control periods
+  maled_data <- maled_data[which(maled_data$case_id %in% maled_data_msd_caseids | maled_data$case == 0), ]
+  
+  # Subset to MSD cases and their matched controls
+  # maled_data <- maled_data[which(maled_data$case_id %in% maled_data_msd_caseids),]
+}
+if(lsd){
+  # Get IDs corresponding to MSD cases and their matched controls
+  maled_data_msd_caseids <- unique(maled_data$case_id[which(maled_data$MSD == 1)])
+  
+  # Remove from data 
+  # (can't just do MSD = 0 because then will still pull MSD cases because matched controls have MSD 0)
+  maled_data <- subset(maled_data, !(case_id %in% maled_data_msd_caseids))
+}
+
+# MAL-ED
+maled_data <- maled_data %>%
+  ungroup() %>%
+  select(study,
+         case_control,
+         first_id,
+         child_id,
+         case_id, 
+         case, 
+         shig_attr,
+         culture_shig_attr,
+         tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
+         all_abx,
+         guideline_abx,
+         azithromycin,
+         ciprofloxacin,
+         ceftriaxone,
+         sex,
+         age,
+         ses_quintile,
+         enr_haz,
+         enr_whz,
+         enr_waz,
+         site,
+         edu_bin,
+         num_hh_lt5,
+         imp_water,
+         imp_sanit,
+         I_followup_days,
+         I_followup_days_x_followup_days,
+         dysentery,
+         any_vom,
+         any_fev,
+         dehyd_level,
+         lsstools,
+         duration_pre_enroll,
+         shigella_new,
+         rotavirus_new,
+         adenovirus_new,
+         st_etec_new,
+         etec_new,
+         cryptosporidium_new,
+         astrovirus_new,
+         norovirus_gii_new,
+         tepec_new,
+         campylobacter_new,
+         sapovirus_new,
+         giardia_new,
+         e_bieneusi_new,
+         eaec_new,
+         v_cholerae_new,
+         salmonella_new,
+         c_jejuni_coli_new,
+         shigella_tac_attr,
+         rotavirus_tac_attr,
+         norovirus_gii_tac_attr,
+         adenovirus_tac_attr, 
+         sapovirus_tac_attr,
+         astrovirus_tac_attr,
+         tepec_tac_attr,
+         cryptosporidium_tac_attr, 
+         v_cholerae_tac_attr, 
+         salmonella_tac_attr,
+         c_jejuni_coli_tac_attr,
+         st_etec_tac_attr,
+         final_haz,
+         final_whz, 
+         final_waz,
+         final_stunt,
+         final_death,
+         final_rehosp,
+         final_death_rehosp,
+         final_duration)
+
+# ABCD
+
+abcd_data$case <- 1 
+abcd_data <- abcd_data %>%
+  ungroup() %>%
+  select(study,
+         case_control,
+         first_id,
+         child_id,
+         case_id, 
+         case, 
+         shig_attr,
+         culture_shig_attr,
+         tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
+         all_abx,
+         guideline_abx,
+         azithromycin,
+         ciprofloxacin,
+         ceftriaxone,
+         sex,
+         age,
+         ses_quintile,
+         enr_haz,
+         enr_whz,
+         enr_waz,
+         site,
+         edu_bin,
+         num_hh_lt5,
+         imp_water,
+         imp_sanit,
+         I_followup_days,
+         I_followup_days_x_followup_days,
+         dysentery,
+         any_vom,
+         any_fev,
+         dehyd_level,
+         lsstools,
+         duration_pre_enroll,
+         shigella_new,
+         rotavirus_new,
+         adenovirus_new,
+         st_etec_new,
+         etec_new,
+         cryptosporidium_new,
+         astrovirus_new,
+         norovirus_gii_new,
+         tepec_new,
+         campylobacter_new,
+         sapovirus_new,
+         giardia_new,
+         e_bieneusi_new,
+         eaec_new,
+         v_cholerae_new,
+         salmonella_new,
+         c_jejuni_coli_new,
+         shigella_tac_attr,
+         rotavirus_tac_attr,
+         norovirus_gii_tac_attr,
+         adenovirus_tac_attr, 
+         sapovirus_tac_attr,
+         astrovirus_tac_attr,
+         tepec_tac_attr,
+         cryptosporidium_tac_attr, 
+         v_cholerae_tac_attr, 
+         salmonella_tac_attr,
+         c_jejuni_coli_tac_attr,
+         st_etec_tac_attr,
+         final_haz,
+         final_whz, 
+         final_waz,
+         final_stunt,
+         final_death,
+         final_rehosp,
+         final_death_rehosp,
+         final_duration)
+
+# EFGH
+efgh_data$case <- 1
+efgh_data <- efgh_data %>%
+  ungroup() %>%
+  select(study,
+         case_control,
+         first_id,
+         child_id,
+         case_id, 
+         case, 
+         shig_attr,
+         culture_shig_attr,
+         tac_shig_attr,
+         shigella_flex,
+         shigella_sonnei,
+         all_abx,
+         guideline_abx,
+         azithromycin,
+         ciprofloxacin,
+         ceftriaxone,
+         sex,
+         age,
+         ses_quintile,
+         enr_haz,
+         enr_whz,
+         enr_waz,
+         site,
+         edu_bin,
+         num_hh_lt5,
+         imp_water,
+         imp_sanit,
+         I_followup_days,
+         I_followup_days_x_followup_days,
+         dysentery,
+         any_vom,
+         any_fev,
+         dehyd_level,
+         lsstools,
+         duration_pre_enroll,
+         shigella_new,
+         rotavirus_new,
+         adenovirus_new,
+         st_etec_new,
+         etec_new,
+         cryptosporidium_new,
+         astrovirus_new,
+         norovirus_gii_new,
+         tepec_new,
+         campylobacter_new,
+         sapovirus_new,
+         giardia_new,
+         e_bieneusi_new,
+         eaec_new,
+         v_cholerae_new,
+         salmonella_new,
+         c_jejuni_coli_new,
+         shigella_tac_attr,
+         rotavirus_tac_attr,
+         norovirus_gii_tac_attr,
+         adenovirus_tac_attr, 
+         sapovirus_tac_attr,
+         astrovirus_tac_attr,
+         tepec_tac_attr,
+         cryptosporidium_tac_attr, 
+         v_cholerae_tac_attr, 
+         salmonella_tac_attr,
+         c_jejuni_coli_tac_attr,
+         st_etec_tac_attr,
+         final_haz,
+         final_whz, 
+         final_waz,
+         final_stunt,
+         final_death,
+         final_rehosp,
+         final_death_rehosp,
+         final_duration)
+
+# Combine all
+if(!lsd){
+  combo_data <- rbind(gems_data,
+                      vida_data,
+                      maled_data, 
+                      abcd_data,
+                      efgh_data)
+} else {
+  combo_data <- maled_data
+}
+
+
+combo_data$sex <- factor(combo_data$sex, levels = 0:1, labels = c("Male", "Female"))
+combo_data$lsstools <- factor(combo_data$lsstools, levels = c("6 or less per day",
+                                                              "7 to 10 per day",
+                                                              "Over 10 per day"))
+
+combo_data$all_abx <- factor(combo_data$all_abx, levels = 0:2, labels = c("No or ineffective antibiotics",
+                                                                          "Possibly effective antibiotics",
+                                                                          "WHO recommended antibiotics"))
+
+combo_data$dehyd_level <- factor(combo_data$dehyd_level, levels = c("No dehydration", "Some dehydration", "Severe dehydration"))
+
+combo_data <- combo_data %>%
+  set_variable_labels(study = "Study name",
+                      case_control = "Case-control study design",
+                      first_id = "Identifier for child",
+                      child_id = "Identifier for episode",
+                      case_id = "Identifier for case episode",
+                      case = "Case (=1 case, =0 control)",
+                      shig_attr = "TAC or culture Shigella attributable diarrhea",
+                      tac_shig_attr = "TAC attributable Shigella diarrhea",
+                      culture_shig_attr = "Culture attributable Shigella diarrhea",
+                      all_abx = "Type of antibiotic received",
+                      guideline_abx = "Received guideline recommended antibiotics",
+                      azithromycin = "Received azithromycin",
+                      ciprofloxacin = "Received ciprofloxacin",
+                      ceftriaxone = "Received ceftriaxone",
+                      sex = "Sex",
+                      age = "Age (months)",
+                      ses_quintile = "Socioeconomic quintile",
+                      enr_haz = "HAZ at enrollment",
+                      enr_whz = "WHZ at enrollment",
+                      enr_waz = "WAZ at enrollment",
+                      site = "Site",
+                      imp_water = "Improved water",
+                      imp_sanit = "Improved sanitation",
+                      num_hh_lt5 = "Number of children in household < age 5",
+                      edu_bin = "Primary caregiver education > primary school",
+                      I_followup_days = "Indicator followup days not missing (for HAZ/WHZ)",
+                      I_followup_days_x_followup_days = "Indicator followup days not missing * followup days",
+                      dysentery = "Dysentery",
+                      any_vom = "Any vomitting",
+                      any_fev = "Any fever",
+                      dehyd_level = "Level of dehydration",
+                      lsstools = "Number of loose stools",
+                      duration_pre_enroll = "Duration of diarrhea before enrollment",
+                      shigella_new = "TAC Shigella quantity (transformed)",
+                      rotavirus_new = "TAC rotavirus quantity (transformed)",
+                      adenovirus_new = "TAC adenovirus quantity (transformed)",
+                      st_etec_new = "TAC ST ETEC quantity (transformed)",
+                      etec_new = "TAC ETEC quantity (transformed)",
+                      cryptosporidium_new = "TAC cryptosporidium quantity (transformed)",
+                      astrovirus_new = "TAC astrovirus quantity (transformed)",
+                      norovirus_gii_new = "TAC norovirus quantity (transformed)",
+                      tepec_new = "TAC tEPEC quantity (transformed)",
+                      campylobacter_new = "TAC campylobacter quantity (transformed)",
+                      sapovirus_new = "TAC sapovirus quantity (transformed)",
+                      giardia_new = "TAC giardia quantity (transformed)",
+                      e_bieneusi_new = "TAC E Bieneusi quantity (transformed)",
+                      eaec_new = "TAC EAEC quantity (transformed)",
+                      v_cholerae_new = "TAC V Cholerae quantity (transformed)",
+                      salmonella_new = "TAC Salmonella quantity (transformed)",
+                      c_jejuni_coli_new = "TAC C Jejuni coli quantity (transformed)",
+                      final_haz = "HAZ at followup (day 60 or day 90)",
+                      final_whz = "WHZ at followup (day 60 or day 90)",
+                      final_waz = "WAZ at followup (day 60 or day 90)",
+                      final_stunt = "Stunting at followup (day 60 or day 90 HAZ < -2)",
+                      final_duration = "Episode duration after enrollment** (do not use yet)",
+                      final_death = "Death by end of followup (day 60 or day 90)",
+                      final_rehosp = "Rehospitalization by end of followup (day 60 or day 90)",
+                      final_death_rehosp = "Death or rehospitalization by end of followup")
+
+# keep existing names for 3-level possibly-effective antibiotic analysis
+# add suffix only for 2-level guideline/bin_abx analysis
+abx_suffix <- if_else(MALED_severity_pre == "guideline", "_bin_abx", "")
+
+if(msd){
+  saveRDS(
+    combo_data,
+    here::here(paste0(
+      "data/ipd_data/co_etiology_ipd_data_",
+      case_def,
+      abx_suffix,
+      ".Rds"
+    ))
+  )
+  
+  # Save cases only
+  saveRDS(
+    combo_data[which(combo_data$case == 1), ],
+    here::here(paste0(
+      "data/ipd_data/co_etiology_ipd_data_",
+      "case_only.Rds"
+    ))
+  )
+  
+} else if(lsd){
+  saveRDS(
+    combo_data,
+    here::here(paste0(
+      "data/ipd_data/ipd_data_case_control_lsd_only_",
+      case_def,
+      abx_suffix,
+      ".Rds"
+    ))
+  )
+} else {
+  saveRDS(
+    combo_data,
+    here::here(paste0(
+      "data/ipd_data/ipd_data_case_control_all_diar_",
+      case_def,
+      abx_suffix,
+      ".Rds"
+    ))
+  )
+}

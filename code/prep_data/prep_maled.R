@@ -202,7 +202,7 @@ prep_mal_ed<- function(){
                                                      "cyclospora_attributable",
                                                      "e_histolytica_attributable",
                                                      "isospora_attributable",
-                                                     "noro_attributable",
+                                                     "noro_gii_attributable", # note changed noro --> noro_gii here 8/25/26
                                                      "rotavirus_attributable",
                                                      "salmonella_attributable",
                                                      "sapo_attributable",
@@ -970,7 +970,11 @@ saveRDS(maled_data_MSD, here::here("data/maled_data/maled_data_shig_MSD_only.Rds
 #   pull non-diarrhea stool same site, age, sex, date +- 14days
 #   check if had diarrhea in previous 7 days
 
-prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_controls = NA){
+
+# all_elig_periods = no matching (co-etiology meta-analysis)
+# Pull all eligible control periods (no diarrhea in previous 7 days so same criteria as GEMS. also not currently on abx for something else)
+
+prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_controls = NA, all_elig_periods = FALSE){
   
   # set seed for sampling controls if not using all
   if(!is.na(max_controls)) set.seed(12345)
@@ -1177,78 +1181,112 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   # person ID = pid
   # sample ID = sid
   
-  matched_controls <- lapply(1:nrow(case_data), function(i, case_data, all_controls, tac_data, max_controls){
-    row <- case_data[i,]
+  if(!all_elig_periods){
     
-    # get age range to match depending on case age
-    # age range = 0-11 months (1-364 days) --> +- 2mo (30.44*2 mo= 61 days)
-    # age range = 12+ months (365 days +) --> +- 4mo (30.44*4 mo = 122 days)
-    if(row$agedays < 365){
-      min_age <- max(0, row$agedays - 61)
-      max_age <- min(row$agedays + 61, 364)
-    } else{
-      min_age <- max(365, row$agedays - 122)
-      max_age <- row$agedays + 122
-    }
+    # Match control periods to cases based on GEMS criteria
     
-    # match sex, site, time, age, not their own control
-    matching_controls <- all_controls %>%
-      filter(cafsex == row$cafsex) %>%
-      filter(country_id == row$country_id) %>%
-      filter(date < (row$date + days(15)) & date > row$date - days(15)) %>%
-      filter(agedays >= min_age & agedays <= max_age) %>%
-      filter(pid != row$pid) %>%
-      group_by(pid) %>%
-      slice_max(order_by = date, n = 1) %>% # Keep the latest sample per individual
-      ungroup()
-    
-    if(nrow(matching_controls) > 0){
-      # for each matching control, make sure no diarrhea 7 days prior
-      control_eligible <- rep(TRUE, nrow(matching_controls))
-      for(j in 1:nrow(matching_controls)){
-        control_row <- matching_controls[j,]
-        tac_data_match <- tac_data %>%
-          filter(pid == control_row$pid) %>%
-          filter(date <= control_row$date & date > control_row$date - days(7))
+    matched_controls <- lapply(1:nrow(case_data), function(i, case_data, all_controls, tac_data, max_controls){
+      row <- case_data[i,]
+      
+      # get age range to match depending on case age
+      # age range = 0-11 months (1-364 days) --> +- 2mo (30.44*2 mo= 61 days)
+      # age range = 12+ months (365 days +) --> +- 4mo (30.44*4 mo = 122 days)
+      if(row$agedays < 365){
+        min_age <- max(0, row$agedays - 61)
+        max_age <- min(row$agedays + 61, 364)
+      } else{
+        min_age <- max(365, row$agedays - 122)
+        max_age <- row$agedays + 122
+      }
+      
+      # match sex, site, time, age, not their own control
+      matching_controls <- all_controls %>%
+        filter(cafsex == row$cafsex) %>%
+        filter(country_id == row$country_id) %>%
+        filter(date < (row$date + days(15)) & date > row$date - days(15)) %>%
+        filter(agedays >= min_age & agedays <= max_age) %>%
+        filter(pid != row$pid) %>%
+        group_by(pid) %>%
+        slice_max(order_by = date, n = 1) %>% # Keep the latest sample per individual
+        ungroup()
+      
+      if(nrow(matching_controls) > 0){
+        # for each matching control, make sure no diarrhea 7 days prior
+        control_eligible <- rep(TRUE, nrow(matching_controls))
+        for(j in 1:nrow(matching_controls)){
+          control_row <- matching_controls[j,]
+          tac_data_match <- tac_data %>%
+            filter(pid == control_row$pid) %>%
+            filter(date <= control_row$date & date > control_row$date - days(7))
+          
+          if(any(tac_data_match$stooltype == "D1")){
+            control_eligible[j] <- FALSE
+          } 
+        }
         
-        if(any(tac_data_match$stooltype == "D1")){
-          control_eligible[j] <- FALSE
-        } 
+        # eliminate ineligible controls
+        matching_controls <- matching_controls[control_eligible,]
+        
+        # if nrow(matching_controls > max_controls), take max_controls num of controls
+        if(!is.na(max_controls) & nrow(matching_controls) > max_controls){
+          ctrl_samp <- sample(1:nrow(matching_controls), max_controls)
+          matching_controls <- matching_controls[ctrl_samp,]
+        }
+        
+        matching_controls$case_pid <- row$pid
+        matching_controls$case_sid <- row$sid
+        matching_controls$no_match <- FALSE
+        
+      } else{
+        # No matching controls
+        matching_controls[1,] <- NA
+        matching_controls$case_pid <- row$pid
+        matching_controls$case_sid <- row$sid
+        matching_controls$no_match <- TRUE
       }
       
-      # eliminate ineligible controls
-      matching_controls <- matching_controls[control_eligible,]
+      return(matching_controls)
       
-      # if nrow(matching_controls > max_controls), take max_controls num of controls
-      if(!is.na(max_controls) & nrow(matching_controls) > max_controls){
-        ctrl_samp <- sample(1:nrow(matching_controls), max_controls)
-        matching_controls <- matching_controls[ctrl_samp,]
-      }
-      
-      matching_controls$case_pid <- row$pid
-      matching_controls$case_sid <- row$sid
-      matching_controls$no_match <- FALSE
-      
-    } else{
-      # No matching controls
-      matching_controls[1,] <- NA
-      matching_controls$case_pid <- row$pid
-      matching_controls$case_sid <- row$sid
-      matching_controls$no_match <- TRUE
+    }, case_data = case_data, all_controls = all_controls, tac_data = tac_data, max_controls = max_controls)
+    
+    matched_controls <- do.call(rbind, matched_controls)
+    
+    # identify cases with no matches and remove from data (rare, only occurring in all case data (not shig case))
+    bad_case_sids <- matched_controls$case_sid[matched_controls$no_match == TRUE]
+    all_tac_cc <- rbind(case_data, matched_controls[,colnames(matched_controls) != "no_match"])
+    if(length(bad_case_sids) > 0){
+      all_tac_cc <- all_tac_cc[-which(all_tac_cc$case_sid %in% bad_case_sids), ]
     }
+  } else{
     
-    return(matching_controls)
+    # Pull all eligible control periods (no diarrhea in 7 days prior to monthly stool sample)
+    # 6865 cases, 35623 controls, more efficient to loop through cases and remove monthly samples that are within 7 days 
     
-  }, case_data = case_data, all_controls = all_controls, tac_data = tac_data, max_controls = max_controls)
-  
-  matched_controls <- do.call(rbind, matched_controls)
-  
-  # identify cases with no matches and remove from data (rare, only occurring in all case data (not shig case))
-  bad_case_sids <- matched_controls$case_sid[matched_controls$no_match == TRUE]
-  all_tac_cc <- rbind(case_data, matched_controls[,colnames(matched_controls) != "no_match"])
-  if(length(bad_case_sids) > 0){
-    all_tac_cc <- all_tac_cc[-which(all_tac_cc$case_sid %in% bad_case_sids), ]
+    # for each pid- look at all cases and remove any controls that are within 7 days prior to case
+    ineligible_controls <- case_data %>%
+      select(pid, case_date = date) %>%
+      inner_join(
+        all_controls %>%
+          select(pid, sid, control_date = date),
+        by = "pid"
+      ) %>%
+      filter(
+        control_date <= case_date,
+        control_date >= case_date - days(7)
+      ) %>%
+      distinct(sid)
+    
+    all_controls <- all_controls %>%
+      filter(!sid %in% ineligible_controls$sid)
+    
+    # keep column but NA bc no matching
+    all_controls$case_pid <- NA
+    all_controls$case_sid <- NA
+    
+    all_tac_cc <- rbind(case_data, all_controls)
+    
   }
+  
   
   # Get attribution by AFE > 0.5
   all_tac_cc$adenovirus_attributable <- ifelse(all_tac_cc$adenovirus_40_41_afe > 0.5, 1, 0)
@@ -1260,6 +1298,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   all_tac_cc$e_histolytica_attributable <- ifelse(all_tac_cc$e_histolytica_afe > 0.5, 1, 0)
   all_tac_cc$isospora_attributable <- ifelse(all_tac_cc$isospora_afe > 0.5, 1, 0)
   all_tac_cc$noro_attributable <- ifelse(all_tac_cc$norovirus_afe > 0.5, 1, 0)
+  all_tac_cc$noro_gii_attributable <- ifelse(all_tac_cc$norovirus_gii_afe > 0.5, 1, 0)
   all_tac_cc$rotavirus_attributable <- ifelse(all_tac_cc$rotavirus_afe > 0.5, 1, 0)
   all_tac_cc$salmonella_attributable <- ifelse(all_tac_cc$salmonella_afe > 0.5, 1, 0)
   all_tac_cc$sapo_attributable <- ifelse(all_tac_cc$sapovirus_afe > 0.5, 1, 0)
@@ -1281,7 +1320,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
                                                          "cyclospora_attributable",
                                                          "e_histolytica_attributable",
                                                          "isospora_attributable",
-                                                         "noro_attributable",
+                                                         "noro_gii_attributable", # note changed noro --> noro_gii here 8/25/26
                                                          "rotavirus_attributable",
                                                          "salmonella_attributable",
                                                          "sapo_attributable",
@@ -1315,6 +1354,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   all_tac_cc$e_histolytica_new <- (35 - all_tac_cc$e_histolytica) / 3.322
   all_tac_cc$isospora_new <- (35 - all_tac_cc$isospora) / 3.322
   all_tac_cc$norovirus_new <- (35 - all_tac_cc$norovirus) / 3.322
+  all_tac_cc$norovirus_gii_new <- (35 - all_tac_cc$norovirus_gii) / 3.322
   all_tac_cc$rotavirus_new <- (35 - all_tac_cc$rotavirus) / 3.322
   all_tac_cc$salmonella_new <- (35 - all_tac_cc$salmonella) / 3.322
   all_tac_cc$sapovirus_new <- (35 - all_tac_cc$sapovirus) / 3.322
@@ -1325,6 +1365,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   all_tac_cc$e_bieneusi_new <- (35 - all_tac_cc$e_bieneusi) / 3.322
   all_tac_cc$eaec_new <- (35 - all_tac_cc$EAEC) / 3.322
   all_tac_cc$giardia_new <- (35 - all_tac_cc$giardia) / 3.322
+  all_tac_cc$c_jejuni_coli_new <- (35 - all_tac_cc$campylobacter_jejuni_coli) / 3.322
   
   
   # Get initial abx treatment variables
@@ -1382,6 +1423,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            e_histolytica_attributable,
            isospora_attributable,
            noro_attributable,
+           noro_gii_attributable,
            rotavirus_attributable,
            salmonella_attributable,
            sapo_attributable,
@@ -1415,6 +1457,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            e_histolytica_new,
            isospora_new,
            norovirus_new,
+           norovirus_gii_new,
            rotavirus_new,
            salmonella_new,
            sapovirus_new,
@@ -1425,6 +1468,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            e_bieneusi_new,
            eaec_new,
            giardia_new,
+           c_jejuni_coli_new,
            # now also include quantities
            rotavirus,
            adenovirus_40_41,
@@ -1432,6 +1476,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            cryptosporidium,
            astrovirus,
            norovirus,
+           norovirus_gii,
            tEPEC,
            campylobacter_pan,
            sapovirus,
@@ -1451,6 +1496,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            "tac_crypto" = cryptosporidium,
            "tac_astrovirus" = astrovirus,
            "tac_norovirus" = norovirus,
+           "tac_norovirus_gii" = norovirus_gii,
            "tac_tEPEC" = tEPEC,
            "tac_campylobacter_pan" = campylobacter_pan,
            "tac_sapovirus" = sapovirus,
@@ -1493,6 +1539,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           no_abx = max(episode_info$no_abx),
           any_abx = max(episode_info$any_abx),
           all_abx = max(episode_info$all_abx),
+          safmacrolide = max(episode_info$safmacrolide),
+          saffluoro = max(episode_info$saffluoro),
           # Severity before guideline recommended abx
           g_maxb = episode_info$maxb[1],
           g_fever = episode_info$fever[1],
@@ -1505,6 +1553,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           g_safshb = max(episode_info$safshb),
           g_fstab = max(episode_info$fstab),
           g_duration_pre_abx = nrow(episode_info),
+          g_duration_post_abx = 0,
           # Severity before possibly effective abx
           p_maxb = episode_info$maxb[1],
           p_fever = episode_info$fever[1],
@@ -1516,7 +1565,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           p_safcough = max(episode_info$safcough),
           p_safshb = max(episode_info$safshb),
           p_fstab = max(episode_info$fstab),
-          p_duration_pre_abx = nrow(episode_info)) # returning length of episode 
+          p_duration_pre_abx = nrow(episode_info),
+          p_duration_post_abx = 0) # returning length of episode 
         )
       } else{
         
@@ -1556,6 +1606,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           no_abx = max(episode_info$no_abx),
           any_abx = max(episode_info$any_abx),
           all_abx = max(episode_info$all_abx),
+          safmacrolide = max(episode_info$safmacrolide),
+          saffluoro = max(episode_info$saffluoro),
           # Severity before guideline recommended abx
           g_maxb = max(pre_guideline_abx$safblood, na.rm = TRUE),
           g_fever = max(pre_guideline_abx$saffev, na.rm = TRUE), 
@@ -1568,6 +1620,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           g_safshb = max(pre_guideline_abx$safshb, na.rm = TRUE),
           g_fstab = max(episode_info$fstab, na.rm = TRUE),
           g_duration_pre_abx = nrow(pre_guideline_abx),
+          g_duration_post_abx = nrow(episode_info) - nrow(pre_guideline_abx),
           # Severity before possibly effective abx
           p_maxb = max(pre_maybe_abx$safblood, na.rm = TRUE),
           p_fever = max(pre_maybe_abx$saffev, na.rm = TRUE), 
@@ -1579,7 +1632,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           p_safcough = max(pre_maybe_abx$safcough, na.rm = TRUE),
           p_safshb = max(pre_maybe_abx$safshb, na.rm = TRUE),
           p_fstab = max(episode_info$fstab, na.rm = TRUE),
-          p_duration_pre_abx = nrow(pre_maybe_abx)))
+          p_duration_pre_abx = nrow(pre_maybe_abx),
+          p_duration_post_abx = nrow(episode_info) - nrow(pre_maybe_abx)))
       }
     } else{
       # CONTROL
@@ -1598,6 +1652,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           no_abx = 999,
           any_abx = 999,
           all_abx = 999,
+          safmacrolide = 999,
+          saffluoro = 999,
           # Severity before guideline
           g_maxb = 999,
           g_fever = 999,
@@ -1610,6 +1666,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           g_safshb = 999,
           g_fstab = 999,
           g_duration_pre_abx = 999,
+          g_duration_post_abx = 999,
           # Severity before possibly
           p_maxb = 999,
           p_fever = 999,
@@ -1621,7 +1678,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           p_safcough = 999,
           p_safshb = 999,
           p_fstab = 999,
-          p_duration_pre_abx = 999))
+          p_duration_pre_abx = 999, 
+          p_duration_post_abx = 999))
       } else {
         # NA because not adjusting for severity in controls
         return(return(data.frame(# Return abx info for whole episode
@@ -1631,6 +1689,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           no_abx = NA,
           any_abx = NA,
           all_abx = NA,
+          safmacrolide = NA,
+          saffluoro = NA,
           # Severity before guideline
           g_maxb = NA,
           g_fever = NA,
@@ -1643,6 +1703,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           g_safshb = NA,
           g_fstab = NA,
           g_duration_pre_abx = NA,
+          g_duration_post_abx = NA,
           # Severity before possibly
           p_maxb = NA,
           p_fever = NA,
@@ -1654,7 +1715,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
           p_safcough = NA,
           p_safshb = NA,
           p_fstab = NA,
-          p_duration_pre_abx = NA)))
+          p_duration_pre_abx = NA, 
+          p_duration_post_abx = NA)))
       }
       
       
@@ -1798,6 +1860,116 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   baseline_and_month3_df <- do.call(rbind, baseline_and_month3_df) 
   final_df <- cbind(all_tac_cc, baseline_and_month3_df)
   
+  # For each case/control period, look if any hosp var in maled_full == 1
+  # after the initial episode but within 90 days of baseline
+  # For each case/control period, determine whether child was rehospitalized
+  # after the initial episode/control date and within 90 days
+  rehosp90 <- lapply(1:nrow(final_df), function(i) {
+    
+    row <- final_df[i, ]
+    
+    # longitudinal data for this participant
+    pid_data <- maled_full %>%
+      filter(Pid == row$pid)
+    
+    if (row$case == 1) {
+      
+      # Identify the original diarrhea episode
+      episode_info <- pid_data %>%
+        filter(stooldiaage == row$agedays)
+      
+      if (nrow(episode_info) == 0) {
+        return(NA_integer_)
+      }
+      
+      # End of initial episode
+      episode_end <- max(episode_info$date, na.rm = TRUE)
+      
+      # Look strictly AFTER episode ends through 90 days after baseline episode date
+      followup <- pid_data %>%
+        filter(
+          date > episode_end,
+          date <= row$date + days(90)
+        )
+      
+    } else {
+      
+      # Controls don't have an initial diarrhea episode,
+      # so start after their index/sample date
+      followup <- pid_data %>%
+        filter(
+          date > row$date,
+          date <= row$date + days(90)
+        )
+    }
+    
+    if (nrow(followup) == 0) {
+      return(0L)
+    }
+    
+    as.integer(any(followup$hosp == 1, na.rm = TRUE))
+  })
+  
+  final_df$rehosp90 <- unlist(rehosp90)
+  
+  ## Add death -- NOT DOING FOR MAL-ED (no TAC for deaths)
+  # Read study exit / death information
+  # Discuss the dropout date/incorporating that in for the HAZ outcomes...
+  # ncf_df <- read.csv(
+  #   here::here("data/maled_data/raw_data/dbo.tbNCF.csv")
+  # ) %>%
+  #   mutate(
+  #     last_contact_date = as.Date(NCFLASTDATE, format = "%d/%b/%y")
+  #   )
+  # 
+  # # Only work with final_df rows belonging to participants who have an NCF record
+  # ncf_periods <- final_df %>%
+  #   mutate(row_id = row_number(),
+  #          index_date = as.Date(date)) %>%
+  #   semi_join(ncf_df, by = c("pid" = "Pid")) %>%
+  #   select(row_id, pid, index_date) %>%
+  #   left_join(
+  #     ncf_df %>%
+  #       select(Pid, NCFREA, last_contact_date),
+  #     by = c("pid" = "Pid")
+  #   ) %>%
+  #   mutate(
+  #     death90_ncf = case_when(
+  #       
+  #       # Died during the 90-day follow-up window
+  #       NCFREA == 2 &
+  #         last_contact_date >= index_date &
+  #         last_contact_date <= index_date + 90 ~ 1L,
+  #       
+  #       # We know they were followed beyond day 90
+  #       last_contact_date >= index_date + 90 ~ 0L,
+  #       
+  #       # Left study / moved / unknown before day 90
+  #       NCFREA %in% c(0, 1, 3) &
+  #         last_contact_date >= index_date &
+  #         last_contact_date < index_date + 90 ~ NA_integer_,
+  #       
+  #       # Death occurred after day 90
+  #       NCFREA == 2 &
+  #         last_contact_date > index_date + 90 ~ 0L,
+  #       
+  #       TRUE ~ NA_integer_
+  #     )
+  #   ) %>%
+  #   select(row_id, death90_ncf)
+  # 
+  # final_df <- final_df %>%
+  #   mutate(row_id = row_number()) %>%
+  #   left_join(ncf_periods, by = "row_id") %>%
+  #   mutate(
+  #     death90 = if_else(
+  #       pid %in% ncf_df$Pid,
+  #       death90_ncf,
+  #       0L
+  #     )
+  #   ) %>%
+  #   select(-row_id, -death90_ncf)
+  
   # rename covariates
   final_df <- final_df %>%
     rename(
@@ -1812,6 +1984,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
       "fever_days_g" = g_fever_days,
       "alri_g" = g_alri,
       "duration_pre_abx_g" = g_duration_pre_abx,
+      "duration_post_abx_g" = g_duration_post_abx,
       "dysentery_p" = p_maxb,
       "lsstools_p" = p_maxls,
       "dehyd_p" = p_maxdehyd,
@@ -1822,6 +1995,9 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
       "fever_days_p" = p_fever_days,
       "alri_p" = p_alri,
       "duration_pre_abx_p" = p_duration_pre_abx,
+      "duration_post_abx_p" = p_duration_post_abx,
+      "macrolide" = safmacrolide,
+      "fluoro" = saffluoro
     )
   
   # select covariates from bl data
@@ -1879,10 +2055,10 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   # join covariates into final_df
   final_df <- left_join(final_df, maled_bl, by = "pid")
   
-  # get rid of pakistan
+  # get rid of pakistan -- NO LONGER DOING -- Drop Pakistan for linear growth only (not other outcomes)
   # Get rid of Pakistan and drop unused factor levels
-  final_df <- final_df[which(final_df$site != "Pakistan"),]
-  final_df$site <- droplevels(final_df$site)
+  # final_df <- final_df[which(final_df$site != "Pakistan"),]
+  # final_df$site <- droplevels(final_df$site)
   
   final_df$followup_days <- as.numeric(difftime(final_df$month3_date,final_df$baseline_date , units = "days"))
   final_df$I_followup_days <- ifelse(is.na(final_df$followup_days), 0, 1)
@@ -1943,6 +2119,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            e_histolytica_attributable,
            isospora_attributable,
            noro_attributable,
+           noro_gii_attributable,
            rotavirus_attributable,
            salmonella_attributable,
            sapo_attributable,
@@ -1972,6 +2149,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            tac_crypto,
            tac_astrovirus,
            tac_norovirus,
+           tac_norovirus_gii,
            tac_tEPEC,
            tac_campylobacter_pan,
            tac_sapovirus,
@@ -1988,6 +2166,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            e_histolytica_new,
            isospora_new,
            norovirus_new,
+           norovirus_gii_new,
            rotavirus_new,
            salmonella_new,
            sapovirus_new,
@@ -1998,6 +2177,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            ETEC_new,
            e_bieneusi_new,
            eaec_new,
+           c_jejuni_coli_new,
            no_etiology,
            any_abx,
            who_abx,
@@ -2005,7 +2185,10 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            ineff_abx,
            no_abx,
            all_abx,
+           macrolide,
+           fluoro,
            duration_pre_abx_p,
+           duration_post_abx_p,
            dysentery_p,
            fever_p,
            fever_days_p,
@@ -2017,6 +2200,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            alri_p,
            
            duration_pre_abx_g,
+           duration_post_abx_g,
            dysentery_g,
            fever_g,
            fever_days_g,
@@ -2059,7 +2243,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
            wlzdiff,
            lendiff,
            wtdiff,
-           MSD) %>%
+           MSD,
+           rehosp90) %>%
     set_variable_labels(pid = "Participant ID",
                         sid = "Sample ID",
                         case_pid = "Participant ID of case",
@@ -2073,11 +2258,14 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
                         who_abx = "Received WHO approved antibiotics",
                         maybe_eff_abx = "Recieved maybe effective antibiotics",
                         ineff_abx = "Recieved ineffective or no antibiotics",
+                        macrolide = "Recieved macrolides",
+                        fluoro = "Recieved fluoroquinolones",
                         baseline_haz = "HAZ at baseline (before & closest to episode)",
                         baseline_date = "Date of baseline HAZ measurement",
                         month3_haz = "HAZ at three months (after & closest to 90 days post-episode)",
                         month3_date = "Date of month three HAZ measurement",
                         duration_pre_abx_g = "Duration of episode prior to guideline recommended antibiotics",
+                        duration_post_abx_g = "Duration of episode after guideline recommended antibiotics",
                         
                         dysentery_g = "Dysentery (pre-guideline rec abx)",
                         lsstools_g = "Max number of loose stools during episode (pre-guideline rec abx)",
@@ -2090,6 +2278,7 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
                         alri_g = "ALRI definition met (pre-guideline rec abx)",
                         
                         duration_pre_abx_p = "Duration of episode prior to possibly effective or guideline recommended antibiotics",
+                        duration_post_abx_p = "Duration of episode post possibly effective or guideline recommended antibiotics",
                         dysentery_p = "Dysentery (pre-possibly effective or guideline rec abx)",
                         lsstools_p = "Max number of loose stools during episode (pre-possibly effective or guideline rec abx)",
                         dehyd_p = "Maximum severity of dehydration during diarrhea episode (pre-possibly effective or guideline rec abx)",
@@ -2138,7 +2327,8 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
                         income = "Mean income",
                         followup_days = "Days between baseline HAZ and month 3 HAZ measurement",
                         hazdiff = "Difference between month 3 and baseline HAZ",
-                        MSD = "Moderate to severe diarrhea (by GEMS definition)")
+                        MSD = "Moderate to severe diarrhea (by GEMS definition)",
+                        rehosp90 = "Hospitalization within 90 days")
   
   # Add same variables as VIDA/GEMS for bootstrap
   
@@ -2169,6 +2359,10 @@ saveRDS(maled_case_control_data_culture, here::here("data/maled_data/maled_case_
 
 maled_case_control_data_all <- prep_maled_case_control(case_def = "all_diar", max_controls = 3)
 saveRDS(maled_case_control_data_all, here::here("data/maled_data/maled_case_control_all.Rds"))
+
+# Co-etiology meta-analysis all eligible controls
+maled_case_control_data_co_etiology <- prep_maled_case_control(case_def = "all_diar", all_elig_periods = TRUE)
+saveRDS(maled_case_control_data_co_etiology, here::here("data/maled_data/maled_case_control_co_etiology.Rds"))
 
 # ---------------------------------------------------------------------------
 
@@ -2443,7 +2637,7 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
                                                          "cyclospora_attributable",
                                                          "e_histolytica_attributable",
                                                          "isospora_attributable",
-                                                         "noro_attributable",
+                                                         "noro_gii_attributable", # note changed noro --> noro_gii here 8/25/26
                                                          "rotavirus_attributable",
                                                          "salmonella_attributable",
                                                          "sapo_attributable",
@@ -2477,6 +2671,7 @@ prep_maled_case_control_monthx <- function(case_def = "tac_or_culture_shig_diar"
   all_tac_cc$e_histolytica_new <- (35 - all_tac_cc$e_histolytica) / 3.322
   all_tac_cc$isospora_new <- (35 - all_tac_cc$isospora) / 3.322
   all_tac_cc$norovirus_new <- (35 - all_tac_cc$norovirus) / 3.322
+  all_tac_cc$norovirus_gii_new <- (35 - all_tac_cc$norovirus_gii) / 3.322
   all_tac_cc$rotavirus_new <- (35 - all_tac_cc$rotavirus) / 3.322
   all_tac_cc$salmonella_new <- (35 - all_tac_cc$salmonella) / 3.322
   all_tac_cc$sapovirus_new <- (35 - all_tac_cc$sapovirus) / 3.322
@@ -3390,6 +3585,4 @@ saveRDS(maled_11mo, here::here("data/maled_data/longitudinal/maled_11mo.Rds"))
 
 maled_12mo <- prep_maled_case_control_monthx(month_x_days = 365)
 saveRDS(maled_12mo, here::here("data/maled_data/longitudinal/maled_12mo.Rds"))
-
-
 

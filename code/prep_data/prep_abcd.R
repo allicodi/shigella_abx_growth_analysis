@@ -37,18 +37,27 @@ prep_abcd <- function(){
   sub_abcd_data <- full_abcd_data[,c("pid", 
                                      "sample_type", # 1 = stool, 2 = swab
                                      "an_d90_timing", 
+                                     
                                      "lazd90",
+                                     "wlzd90",
+                                     "wazd90",
+                                     
+                                     "day2diar",
+                                     "day3diar",
                                      "agemchild" ,
                                      "month_en" ,
                                      "site" ,
                                      "dy1_ant_sex" ,
                                      "an_ses_quintile" ,
                                      "avemuac" ,
+                                     
                                      "lfazscore" ,
+                                     "wflzscore",
                                      "wfazscore",
+                                     
                                      "an_tothhlt5" ,
                                      "an_grp_01" ,
-                                     "lazdiff" ,
+                                     
                                      "dy1_scrn_vomitall",
                                      "dy1_scrn_dehydr",
                                      "dy1_scrn_lstools",
@@ -82,13 +91,17 @@ prep_abcd <- function(){
                                      "st_etec_adjust",
                                      "tepec_adjust",  
                                      
-                                     
                                      "wlzdiff",
                                      "wazdiff",
+                                     "lazdiff" ,
+                                     
                                      "an_meanlen_d1",
                                      "an_meanwt_d1",
                                      "an_meanlen_d90",
                                      "an_meanwt_d90",
+                                     "an_hosp90death", # add hospitalisation or death by D90
+                                     "an_hosp90_yn", # hospitalization by 90
+                                     "an_death90",   # death by 90
                                      "gems_msd")]
   
   sub_abcd_data$pid <- as.numeric(sub_abcd_data$pid)
@@ -242,11 +255,17 @@ prep_abcd <- function(){
   
   # eliminate laz and waz >6 or <-6
   abcd_data$lazd90 <- ifelse(abcd_data$lazd90 > 6 | abcd_data$lazd90 < -6, NA, abcd_data$lazd90)
-  abcd_data$lfazscore <- ifelse(abcd_data$lfazscore > 6 | abcd_data$lfazscore < -6, NA, abcd_data$lfazscore)
+  abcd_data$wlzd90 <- ifelse(abcd_data$wlzd90 > 6 | abcd_data$wlzd90 < -6, NA, abcd_data$wlzd90)
+  abcd_data$wazd90 <- ifelse(abcd_data$wazd90 > 6 | abcd_data$wazd90 < -6, NA, abcd_data$wazd90)
   
+  abcd_data$lfazscore <- ifelse(abcd_data$lfazscore > 6 | abcd_data$lfazscore < -6, NA, abcd_data$lfazscore)
   abcd_data$wfazscore <- ifelse(abcd_data$wfazscore > 6 | abcd_data$wfazscore < -6, NA, abcd_data$wfazscore)
+  abcd_data$wflzscore <- ifelse(abcd_data$wflzscore > 6 | abcd_data$wflzscore < -6, NA, abcd_data$wflzscore)
   
   abcd_data$lazdiff <- ifelse(is.na(abcd_data$lazd90) | is.na(abcd_data$lfazscore), NA, abcd_data$lazdiff)
+  
+  # add stunting var based on lazd90
+  abcd_data$stunting_bin <- ifelse(abcd_data$lazd90 < -2, 1, 0)
   
   # SAME PREP FROM OTR ANALYSIS
   abcd_data$dy1_scrn_vomitall <- factor(abcd_data$dy1_scrn_vomitall, levels=c(1,2), 
@@ -419,7 +438,14 @@ prep_abcd <- function(){
                         an_tothhlt5 = "Number of household members under age 5",
                         an_grp_01 = "Azithromycin",
                         lazd90 = "Length-for-age z-score at day 90",
+                        wlzd90 = "Weight-for-length z-score at day 90",
+                        day2diar = "3+ watery stools on day 2",
+                        day3diar = "3+ watery stools on day 3",
                         lazdiff = "Difference in length-for-age z-score enrollment to day 90",
+                        stunting_bin = "Stunting (day 90 LAZ < -2)",
+                        an_hosp90death = "Indicates hospitalisation or death by D90",
+                        an_death90 = "Indicates death by D90",
+                        an_hosp90_yn = "Indicates hospitalisation by D90",
                         cryptosporidium_likely = "Cryptosporidium attribution likely",
                         shigella_likely = "Shigella attribution likely",
                         adenovirus_likely = "Adenovirus attribution likely",

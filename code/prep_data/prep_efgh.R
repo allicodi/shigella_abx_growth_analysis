@@ -542,7 +542,11 @@ clean_abx <- function(){
     mutate(ineff_abx = ifelse(treatment =="Received pre-enrollment", 0, ineff_abx),
            maybe_eff_abx = ifelse(treatment == "Received pre-enrollment", 0, maybe_eff_abx),
            who_rec_abx = ifelse(treatment=="Received pre-enrollment", 0, who_rec_abx),
-           anti_diarrhea_abx = ifelse(treatment=="Received pre-enrollment", 0, anti_diarrhea_abx)) %>%
+           anti_diarrhea_abx = ifelse(treatment=="Received pre-enrollment", 0, anti_diarrhea_abx),
+           azithromycin = ifelse(treatment=="Received pre-enrollment", 0, azithromycin),
+           ciprofloxacin = ifelse(treatment=="Received pre-enrollment", 0, ciprofloxacin),
+           ceftriaxone = ifelse(treatment=="Received pre-enrollment", 0, ceftriaxone),
+           pivmecillinam = ifelse(treatment=="Received pre-enrollment", 0, pivmecillinam)) %>%
     group_by(pid) %>%
     summarise(who_rec_abx = max(who_rec_abx),
               maybe_eff_abx = max(maybe_eff_abx),
@@ -567,6 +571,99 @@ clean_abx <- function(){
   # return final dataset of pids who received abx
   return(final_dataset)
   
+}
+
+#' Function to create death/rehospitalization outcome
+#' Re-used from Allison O. OTR project
+#' 
+create_hosp90death <- function(){
+  DCS_follow <- readRDS(here::here("data/efgh_data/raw_data/DCS_07_follow_up.rds")) %>%
+    select(pid, foll_visit, foll_new_dia_adm, foll_new_ill_adm,
+           foll_new_dia_adv_adm, foll_new_ill_adv_adm)
+  #Consider sensitivity analysis to include recommended for hospitalization vs. admission
+  #n=10 recommended for admission but not admitted for new diarrheal illness
+  #n=25 recommended for admission but not admitted for new non-diarrheal illness
+  
+  # Transform dataset to wide data
+  DCS_follow <- DCS_follow %>%
+    mutate(foll_visit = case_when(
+      foll_visit == 1 ~ "1mo",
+      foll_visit == 2 ~ "3mo"
+    ))
+  
+  DCS_follow <- pivot_wider(DCS_follow, 
+                            names_from = foll_visit, 
+                            values_from = c(foll_new_dia_adm, foll_new_ill_adm, foll_new_dia_adv_adm, foll_new_ill_adv_adm))
+  
+  DCS_hosp_record <- readRDS(here::here("data/efgh_data/raw_data/DCS_09_hospital_record_abstraction.rds")) %>%
+    select(pid, hosp_ward, hosp_efgh_out)
+  
+  DCS_unwell <- readRDS(here::here("data/efgh_data/raw_data/DCS_08_unwell_child.rds")) %>%
+    select(pid, uv_outcome, uv_outcome_oth)
+  
+  DCS_mortality <- readRDS(here::here("data/efgh_data/raw_data/DCS_10a_mortality.rds")) %>%
+    select(pid, mort_date)
+  
+  # ----- Combine datasets for distinct observations
+  dfs <- list(DCS_follow, DCS_hosp_record, DCS_unwell, DCS_mortality)
+  
+  hosp90death <- Reduce(function(x,y) merge(x, y, by = "pid", all =TRUE), dfs)
+  
+  hosp90death <- hosp90death %>%
+    distinct()
+  
+  # ----- Create hierarchy to prioritize relevant uv_outcome observations
+  hosp90death <- hosp90death %>%
+    group_by(pid) %>%
+    mutate(priority_uv_outcome = min(uv_outcome)) %>%
+    ungroup()
+  
+  hosp90death <- hosp90death %>%
+    distinct( pid, foll_new_dia_adm_1mo, foll_new_dia_adm_3mo, 
+              foll_new_ill_adm_1mo, foll_new_ill_adm_3mo,
+              foll_new_dia_adv_adm_1mo, foll_new_dia_adv_adm_3mo,
+              foll_new_ill_adv_adm_1mo, foll_new_ill_adv_adm_3mo, mort_date,
+              priority_uv_outcome, .keep_all = TRUE) %>%
+    select(-uv_outcome, -uv_outcome_oth)
+  
+  # ----- Identify those who completed second follow-up (for whom outcome is known)
+  follow <- readRDS(here::here("data/efgh_data/raw_data/DCS_07_follow_up.rds")) %>%
+    select(pid, foll_visit) %>%
+    filter(foll_visit==2)
+  
+  pid_complete <- unique(follow$pid)
+  
+  # ----- Construct outcome
+  hosp90death <- hosp90death %>%
+    mutate(hosp90 = NA,
+           hosp90 = ifelse(priority_uv_outcome==1 |
+                             hosp_ward==1 | #short-stay wards excluded from outcome
+                             foll_new_dia_adm_1mo==1 |
+                             foll_new_dia_adm_3mo==1 |
+                             foll_new_ill_adm_1mo==1 |
+                             foll_new_ill_adm_3mo==1, 1, hosp90),
+           
+           death90 = NA,
+           death90 = ifelse(hosp_efgh_out==3 |
+                              is.na(mort_date)==FALSE, 1, death90))
+  
+  
+  hosp90death <- hosp90death %>%
+    mutate(an_hosp90death = NA,
+           an_hosp90death = ifelse(hosp90==1 | death90==1, 1, an_hosp90death),
+           
+           an_hosp90death = if_else(is.na(an_hosp90death)==TRUE &
+                                      pid %in% pid_complete, 0, an_hosp90death),
+           # allison c. added for hosp90 and death90 alone 9/1/26
+           hosp90 = if_else(is.na(hosp90)==TRUE &
+                                      pid %in% pid_complete, 0, hosp90),
+           death90 = if_else(is.na(death90)==TRUE &
+                                      pid %in% pid_complete, 0, death90))
+  
+  outcomes_final <- hosp90death %>%
+    select(pid, an_hosp90death, death90, hosp90)
+  
+  return(outcomes_final)
 }
 
 
@@ -743,6 +840,12 @@ prep_efgh <- function(){
   laz_data$enr_haz <- ifelse(laz_data$enr_haz > 6 | laz_data$enr_haz < -6, NA, laz_data$enr_haz)
   laz_data$wk4_haz <- ifelse(laz_data$wk4_haz > 6 | laz_data$wk4_haz < -6, NA, laz_data$wk4_haz)
   laz_data$mo3_haz <- ifelse(laz_data$mo3_haz > 6 | laz_data$mo3_haz < -6, NA, laz_data$mo3_haz)
+  
+  laz_data$enr_waz <- ifelse(laz_data$enr_waz > 6 | laz_data$enr_waz < -6, NA, laz_data$enr_waz)
+  laz_data$mo3_waz <- ifelse(laz_data$mo3_waz > 6 | laz_data$mo3_waz < -6, NA, laz_data$mo3_waz)
+  
+  laz_data$enr_whz <- ifelse(laz_data$enr_whz > 6 | laz_data$enr_whz < -6, NA, laz_data$enr_whz)
+  laz_data$mo3_whz <- ifelse(laz_data$mo3_whz > 6 | laz_data$mo3_whz < -6, NA, laz_data$mo3_whz)
   
   laz_data$wk4_visit_dt <- as.Date(laz_data$wk4_visit_dt)
   laz_data$mo3_visit_dt <- as.Date(laz_data$mo3_visit_dt)
@@ -972,8 +1075,10 @@ prep_efgh <- function(){
     select(-tac_shigella_attributable, -positive_tac_or_culture, -shigella_attributable)
   
   # Get severity information (GEMS_MSD)
+  # ADDED 9/1/26 -- get duration of episode after enrollment by taking episode diarrhea length - diar_days_at_enroll
   sev_data <- readRDS(here::here("data/efgh_data/raw_data/DCS_severity_scores.Rds")) %>%
-    select("pid", "gems_msd")
+    mutate("duration_post_enroll" = episode_diarrhea_length - diar_days_at_enroll) %>%
+    select("pid", "gems_msd", "duration_post_enroll")
   
   combo_data <- left_join(tac_data, laz_data, by = "pid") %>%
     merge(wealth_data, by = "pid") %>%
@@ -1027,13 +1132,167 @@ prep_efgh <- function(){
                                              0, 
                                              combo_data$I_mo3_days * combo_data$mo3_days)
   
+  # Add death and rehospitalization variable - reusing code from OTR project
+  death_rehosp <- create_hosp90death()
+  # note there are people missing from death_rehosp that appear in combo_data
+  # these people are also missing other outcomes (lost to follow up)
+  combo_data <- combo_data %>%
+    left_join(death_rehosp, by = "pid")
+  
   # Add labels to dataset for nice display in gtsummary tables
   combo_data <- combo_data %>%
-    set_variable_labels(sex = "Sex",
+    select(pid,
+           enroll_site,
+           enr_age_months, 
+           sex, 
+           enr_haz,
+           enr_whz,
+           enr_waz,
+           enr_weight_before_kg,
+           enr_lenhei_cm, 
+           wk4_haz,
+           wk4_visit_dt, 
+           mo3_haz,
+           mo3_waz, 
+           mo3_whz, 
+           mo3_wt, 
+           mo3_lenhei,
+           mo3_wt,
+           mo3_visit_dt,  
+           enr_wk4_delta_haz,
+           enr_mo3_delta_haz,
+           enr_mo3_delta_waz,
+           enr_mo3_delta_whz,
+           enr_mo3_delta_lenhei,
+           enr_mo3_delta_weight,
+           wk4_days,                     
+           mo3_days,
+           I_mo3_days,
+           I_mo3_days_x_mo3_days,
+           death90,
+           hosp90,
+           an_hosp90death, 
+           shigella_serotype,
+           adenovirus_40_41_attributable,
+           aeromonas_attributable,
+           astrovirus_attributable,
+           c_jejuni_coli_attributable,
+           cryptosporidium_attributable,
+           cyclospora_attributable,
+           e_histolytica_attributable,
+           norovirus_gii_attributable,
+           rotavirus_attributable,
+           salmonella_attributable,
+           sapovirus_attributable,
+           ST.ETEC_attributable,
+           tEPEC_attributable,
+           v_cholerae_attributable,
+           isospora_attributable,
+           rotavirus_ct,
+           shigella_ct,
+           adenovirus_40_41_ct,
+           ETEC_ct,
+           cryptosporidium_ct,
+           astrovirus_ct,
+           norovirus_gi_ct,
+           norovirus_gii_ct,
+           c_jejuni_coli_ct,
+           tEPEC_ct,
+           sapovirus_ct,
+           e_bieneusi_ct,
+           giardia_ct,
+           EAEC_ct,
+           ST.ETEC_ct,
+           v_cholerae_ct,
+           salmonella_ct,
+           shigella_flex,
+           shigella_sonnei,
+           shigella_new,
+           rotavirus_new,
+           adenovirus_new,
+           ETEC_new,
+           st_etec_new,
+           cryptosporidium_new,
+           astrovirus_new,
+           norovirus_gii_new,
+           c_jejuni_new,
+           tEPEC_new,
+           sapovirus_new,
+           e_bieneusi_new,
+           giardia_new,
+           EAEC_new,
+           v_cholerae_new,
+           salmonella_new,
+           bacteria_attr,
+           viral_attr,
+           no_etiology,
+           final_quintile,
+           final_quintile_site,
+           exclusive_breastfeeding_bin,
+           enroll_cg_moth_ed,
+           enroll_ai_num_child,
+           enroll_ai_wt,
+           enroll_ai_toi,
+           enroll_date,
+           imp_water,
+           imp_toi,
+           moth_ed_bin,
+           duration_pre_enroll,
+           duration_post_enroll,
+           gems_msd,
+           enroll_diar_blood,
+           enroll_diar_vom_days,
+           enroll_diar_fever,
+           enroll_diar_fever_days,
+           enroll_diar_vom_num,
+           enroll_diar_loose_num,
+           enroll_cond_dehyd,
+           all_abx,
+           who_rec_abx,
+           maybe_eff_abx,                
+           ineff_abx, 
+           anti_diarrhea_abx,
+           azithromycin,
+           ciprofloxacin,
+           ceftriaxone,
+           pivmecillinam,
+           no_abx, 
+           ast_given_abx,
+           swi_ast_az_int,
+           swi_ast_cipro_int,
+           swi_ast_ceft_int,
+           swi_ast_piv_int,
+           resistant_WHO_approve,
+           susceptible_WHO_approve,
+           ast_given_abx,
+           positive_tac_or_culture,
+           culture_shigella_positive,
+           tac_shigella_detected,
+           tac_shigella_attributable
+           ) %>%
+    set_variable_labels(pid = "Participant ID (for given episode)",
+                        sex = "Sex",
                         enr_age_months = "Age at enrollment (months)",
                         enr_haz = "HAZ at enrollment",
+                        enr_whz = "WHZ at enrollment",
+                        enr_waz = "WAZ at enrollment",
+                        enr_weight_before_kg = "Mean pre-hydration weight at enrollment",
+                        enr_lenhei_cm = "Mean length at enrollment",
                         wk4_haz = "Week 4 HAZ",
                         mo3_haz = "Month 3 HAZ",
+                        wk4_visit_dt = "Date of week 4 visit",
+                        mo3_visit_dt = "Date of month 3 visit",
+                        mo3_waz = "Month 3 WAZ",
+                        mo3_whz = "Month 3 WHZ",
+                        mo3_wt = "Month 3 weight",
+                        mo3_lenhei = "Month 3 length",
+                        mo3_visit_dt = "Month 3 visit date",
+                        an_hosp90death = "Month 3 rehospitalization or death",
+                        death90 = "Death by day 90",
+                        hosp90 = "Hospitalization by day 90",
+                        wk4_days = "Days between enrollment and week 4 visit",
+                        mo3_days = "Days between enrollment and month 3 visit",
+                        duration_post_enroll = "Duration of diarrhea after enrollment (>=3 watery stools in 24hr period)",
                         final_quintile = "SES Quintile",
                         final_quintile_site = "SES Quintile by site",
                         enroll_site = "Enrollment site",
@@ -1097,14 +1356,30 @@ prep_efgh <- function(){
                         e_bieneusi_new = "E Bieneusi TAC scaled",
                         giardia_new = "Giardia TAC scaled",
                         EAEC_new = 'EAEC TAC scaled',
+                        st_etec_new = "ST ETEC scaled",
+                        v_cholerae_new = "V. Cholerae scaled",
                         exclusive_breastfeeding_bin = "Exclusively breastfed for >= 6 months",
                         enr_wk4_delta_haz = "Change in HAZ - Week 4",
                         enr_mo3_delta_haz = "Change in HAZ - Month 3",
+                        enr_mo3_delta_waz = "Change in WAZ - Month 3",
+                        enr_mo3_delta_whz = "Change in WHZ - Month 3",
+                        enr_mo3_delta_lenhei = "Change in length - Month 3",
+                        enr_mo3_delta_weight = "Change in weight - Month 3",
                         wk4_days = "Days between enrollment and week 4 follow-up visit",
                         mo3_days = "Days between enrollment and month 3 follow-up visit",
                         I_mo3_days = "Indicator mo3_days not missing",
                         I_mo3_days_x_mo3_days = "Indicator mo3_days not missing * mo3_days",
-                        gems_msd = "GEMS definition of moderate to severe diarrhea")
+                        gems_msd = "GEMS definition of moderate to severe diarrhea",
+                        shigella_serotype = "Shgiella serotype",
+                        shigella_flex = "Shigella flexneri serotype",
+                        shigella_sonnei = "Shigella sonnei serotype", 
+                        enroll_date = "Enrollment date",
+                        swi_ast_az_int = "Azithromycin resistant",
+                        swi_ast_cipro_int = "Ciprofloxacin resistant",
+                        swi_ast_ceft_int = "Ceftriaxone resistant",
+                        swi_ast_piv_int = "Pivmecillinam resistant",
+                        enroll_ai_toi = "Toilet type",
+                        enroll_ai_wt = "Water type")
   
   # ADD IN CHILD ID 
   # first ID is the first pid for a given child
@@ -1126,8 +1401,15 @@ prep_efgh <- function(){
                           data.frame(first_id = child_id_data$pid,
                                      pid = child_id_data$pid4) %>% drop_na())
   
-  combo_data <- left_join(combo_data, child_id_final, by = "pid")
-  combo_data$child_id <- combo_data$first_id
+  combo_data <- left_join(combo_data, child_id_final, by = "pid") 
+    
+  # combo_data$child_id <- combo_data$first_id
+  # fix line 9/1/26, had already fixed in IPD
+  combo_data$child_id <- combo_data$pid
+  
+  combo_data <- combo_data %>%
+    set_variable_labels(first_id = "PID from first enrollment (identifies unique child)",
+                        child_id = "PID of episode (= pid, naming convention to match other studies)")
   
   return(combo_data)
 }
