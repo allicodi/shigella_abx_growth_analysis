@@ -10,9 +10,8 @@ library(SuperLearner)
 
 source(here::here("code/run_analyses/SL.wrappers.R"))
 
-
 # msd only, lsd only, if both false include all (no subset)
-msd <- FALSE
+msd <- TRUE
 lsd <- FALSE
 
 # to save msm results
@@ -61,7 +60,6 @@ for(month in 1:12){
   maled_case_data <- data[data$case == 1,]
   maled_control_data <- data[data$case == 0,]
   
-  # NOTE- no WAMI quintile due to overfitting
   maled_case_data_imp <- impute_covariates(data = maled_case_data,
                                            site_var_name = "site",
                                            imp_by_site = TRUE,
@@ -72,7 +70,7 @@ for(month in 1:12){
                                                               "mated_bin", 
                                                               "drinkimp",
                                                               "sanitimp",
-                                                              #"wami_quintile",
+                                                              # "ses_wami", 
                                                               "adenovirus_40_41_new",                  
                                                               "aeromonas_new",                         
                                                               "astrovirus_new",                        
@@ -92,12 +90,12 @@ for(month in 1:12){
                                                               "ETEC_new",                              
                                                               "e_bieneusi_new",                        
                                                               "eaec_new",
-                                                              "dysentery",
-                                                              "fever",
-                                                              "fever_days",
-                                                              "dehyd",
-                                                              "lsstools",
-                                                              "daysvomit"))
+                                                              "dysentery_p",
+                                                              "fever_p",
+                                                              "fever_days_p",
+                                                              "dehyd_p",
+                                                              "lsstools_p",
+                                                              "daysvomit_p"))
   
   maled_control_data_imp <- impute_covariates(data = maled_control_data,
                                               site_var_name = "site",
@@ -106,7 +104,7 @@ for(month in 1:12){
                                                                  "sex",
                                                                  "agemonths",
                                                                  "baseline_haz",
-                                                                 #"wami_quintile",
+                                                                 # "ses_wami", 
                                                                  "mated_bin", 
                                                                  "drinkimp",
                                                                  "sanitimp"))
@@ -128,19 +126,19 @@ for(month in 1:12){
                                                      "mated_bin", 
                                                      "drinkimp",
                                                      "sanitimp",
-                                                     #"wami_quintile",
+                                                     # "ses_wami", 
                                                      "I_followup_days",
                                                      "I_followup_days_x_followup_days"),
                                   abx_var_name = "all_abx",
                                   site_var_name = "site",
                                   site_interaction = TRUE,
-                                  severity_list = c("dysentery",
-                                                    "fever",
-                                                    "fever_days",
-                                                    "dehyd",
-                                                    "lsstools",
-                                                    "daysvomit",
-                                                    "duration_pre_abx"),
+                                  severity_list = c("dysentery_p",
+                                                    "fever_p",
+                                                    "fever_days_p",
+                                                    "dehyd_p",
+                                                    "lsstools_p",
+                                                    "daysvomit_p",
+                                                    "duration_pre_abx_p"),
                                   age_var_name = "age")
   
   # SET PARAMETERS
@@ -334,22 +332,48 @@ for(month in 1:12){
   covariates_case_no_site <- case_data[, covariate_list_no_followup, drop = FALSE]
   covariates_control_no_site <- control_data[, covariate_list_no_followup, drop = FALSE]
   
-  ## Missingness model in cases
-  prop_model_3a <- SuperLearner::SuperLearner(Y = I_Y_case,
-                                              X = data.frame(abx_case,
-                                                             covariates_case_no_site,
-                                                             severity_case,
-                                                             pathogen_q_case),
-                                              family = stats::binomial(),
-                                              SL.library = sl.library.missingness.case,
-                                              cvControl = list(V = v_folds))
+  ## Missingness model in cases (if there is missingness)
+  if(sum(I_Y_case) == 0){
+    # no missingness; dummy model that returns 0 for all
+    prop_model_3a <- list(SL.pred = rep(0, length(I_Y_case)))
+    class(prop_model_3a) <- "constant_zero_model"
+    
+    predict.constant_zero_model <- function(object, newdata, ...) {
+      list(pred = rep(0, nrow(newdata)))
+    }
+    
+  } else{
+    
+    prop_model_3a <- SuperLearner::SuperLearner(Y = I_Y_case,
+                                                X = data.frame(abx_case,
+                                                               covariates_case_no_site,
+                                                               severity_case,
+                                                               pathogen_q_case),
+                                                family = stats::binomial(),
+                                                SL.library = sl.library.missingness.case,
+                                                cvControl = list(V = v_folds))
+  }
+  
+  
   
   ## Missingness model in controls
-  prop_model_3b <- SuperLearner::SuperLearner(Y = I_Y_control,
-                                              X = data.frame(covariates_control_no_site),
-                                              family = stats::binomial(),
-                                              SL.library = sl.library.missingness.control,
-                                              cvControl = list(V = v_folds))
+  if(sum(I_Y_control) == 0){
+    # no missingness; dummy model that returns 0 for all
+    prop_model_3b <- list(SL.pred = rep(0, length(I_Y_control)))
+    class(prop_model_3b) <- "constant_zero_model"
+    
+    predict.constant_zero_model <- function(object, newdata, ...) {
+      list(pred = rep(0, nrow(newdata)))
+    }
+    
+  } else{
+    
+    prop_model_3b <- SuperLearner::SuperLearner(Y = I_Y_control,
+                                                X = data.frame(covariates_control_no_site),
+                                                family = stats::binomial(),
+                                                SL.library = sl.library.missingness.control,
+                                                cvControl = list(V = v_folds))
+  }
   
   # Predict setting each abx level
   
@@ -503,20 +527,20 @@ for(month in 1:12){
   results$aipw_models <- NULL
   
   if(msd){
-    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_msd_", month, ".Rds")))
+    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_no_wami_msd_", month, "_", seed, ".Rds")))
   } else if(lsd){
-    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_lsd_", month, ".Rds")))
+    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_no_wami_lsd_", month, "_", seed, ".Rds")))
   } else{
-    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_", month, ".Rds")))
+    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_no_wami_", month, "_", seed, ".Rds")))
   }
   
 }
 
 
 if(msd){
-  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_msd_df.Rds"))
+  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_msd_no_wami_df.Rds"))
 } else if(lsd){
-  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_lsd_df.Rds"))
+  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_lsd_no_wami_df.Rds"))
 } else{
-  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_df.Rds"))
+  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_no_wami_df.Rds"))
 }

@@ -11,15 +11,15 @@ library(SuperLearner)
 source(here::here("code/run_analyses/SL.wrappers.R"))
 
 # msd only, lsd only, if both false include all (no subset)
-msd <- TRUE
+msd <- FALSE
 lsd <- FALSE
 
 # change option for age stratified
-age_stratified <- TRUE
+age_stratified <- FALSE
 
-age_0_11 <- TRUE
+age_0_11 <- FALSE
 age_12_23 <- FALSE
-age_24_59 <- FALSE
+age_24_59 <- TRUE
 
 if(msd){
   data <- readRDS("data/ipd_data/ipd_data_case_control_msd_tac_or_culture_shig.Rds")

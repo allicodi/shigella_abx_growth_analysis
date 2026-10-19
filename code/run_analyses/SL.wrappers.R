@@ -93,6 +93,33 @@ predict.SL.step.forward.spline.age.haz.abx <- function(object, newdata, ...){
   return(pred)
 }
 
+# Step forward with spline for age, HAZ - force abx in too
+# VERSION FOR guideline_abx variable
+SL.step.forward.spline.age.haz.guideline_abx <- function (Y, X, newX, family, direction = "forward", trace = 0, k = 2, ...) {
+  # Get var names
+  X_var_names <- colnames(X)
+  
+  # Remove age and enr_haz
+  X_var_names <- setdiff(X_var_names, c("age", "enr_haz"))
+  
+  # Add splines for age and enr_haz (assuming the variables are named age and haz)
+  formula <- as.formula(paste("Y ~ splines::ns(age, df = 3) + splines::ns(enr_haz, df = 3) + ", 
+                              paste(X_var_names, collapse = " + ")))
+  
+  fit.glm <- glm(formula, data = X, family = family)
+  fit.step <- step(glm(as.formula("Y ~ splines::ns(age, df = 3) + splines::ns(enr_haz, df = 3) + guideline_abx"), data = X, family = family), scope = formula(fit.glm), 
+                   direction = direction, trace = trace, k = k)
+  pred <- predict(fit.step, newdata = newX, type = "response")
+  fit <- list(object = fit.step)
+  out <- list(pred = pred, fit = fit)
+  class(out$fit) <- c("SL.step.forward.spline.age.haz.guideline_abx")
+  return(out)
+}
+predict.SL.step.forward.spline.age.haz.guideline_abx <- function(object, newdata, ...){
+  pred <- predict(object = object$object, newdata = newdata, type = "response")
+  return(pred)
+}
+
 # Custom glmnet screener to handle abx as a factor
 SL.screen.abx.glmnet <- function (
     Y, X, family, alpha = 1, 
@@ -103,6 +130,43 @@ SL.screen.abx.glmnet <- function (
   p_original_X <- ncol(X)
   
   abx_variable_label <- "all_abx"
+  abx_variables_original_X <- which(grepl(abx_variable_label, colnames(X)))
+  other_variables_original_X <- seq_len(p_original_X)[-abx_variables_original_X]
+  
+  if (!is.matrix(X)) {
+    X <- model.matrix(~-1 + ., X)
+  }
+  
+  fitCV <- glmnet::cv.glmnet(x = X, y = Y, lambda = NULL, type.measure = "deviance", 
+                             nfolds = nfolds, family = family$family, alpha = alpha, 
+                             nlambda = nlambda)
+  
+  abx_variables <- which(grepl(abx_variable_label, colnames(X)))
+  n_abx_variables <- length(abx_variables)
+  other_variables <- seq_len(ncol(X))[-abx_variables]
+  
+  all_coefs <- as.numeric(coef(fitCV$glmnet.fit, s = fitCV$lambda.min))[-1]
+  whichVariable <- rep(FALSE, p_original_X)
+  whichVariable[other_variables_original_X] <- all_coefs[other_variables] != 0
+  whichVariable[abx_variables_original_X] <- any(abs(all_coefs[abx_variables]) > 1e-5)
+  
+  if (sum(whichVariable) < minscreen) {
+    # just return abx if nothing passes screen
+    whichVariable[abx_variables_original_X] <- TRUE
+  }
+  return(whichVariable)
+}
+
+# Custom glmnet screener to handle abx as a factor
+SL.screen.guideline_abx.glmnet <- function (
+    Y, X, family, alpha = 1, 
+    minscreen = 1, nfolds = 10, 
+    nlambda = 100, ...
+){
+  SuperLearner:::.SL.require("glmnet")
+  p_original_X <- ncol(X)
+  
+  abx_variable_label <- "guideline_abx"
   abx_variables_original_X <- which(grepl(abx_variable_label, colnames(X)))
   other_variables_original_X <- seq_len(p_original_X)[-abx_variables_original_X]
   

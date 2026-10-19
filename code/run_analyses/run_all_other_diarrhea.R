@@ -194,12 +194,12 @@ maled_data_imp <- impute_covariates(data = maled_data,
                                                        "ETEC_new",                              
                                                        "e_bieneusi_new",                        
                                                        "eaec_new",
-                                                       "dysentery",
-                                                       "fever",
-                                                       "fever_days",
-                                                       "dehyd",
-                                                       "lsstools",
-                                                       "daysvomit"))
+                                                       "dysentery_p",
+                                                       "fever_p",
+                                                       "fever_days_p",
+                                                       "dehyd_p",
+                                                       "lsstools_p",
+                                                       "daysvomit_p"))
 
 # Add "age" and "enr_haz" to match wrappers (go back and rename in raw data later)
 maled_data_imp$age <- maled_data_imp$agemonths
@@ -220,13 +220,13 @@ one_hot_maled <- one_hot_encode(data = maled_data_imp,
                                 abx_var_name = "all_abx",
                                 site_var_name = "site",
                                 site_interaction = TRUE,
-                                severity_list = c("dysentery",
-                                                  "fever",
-                                                  "fever_days",
-                                                  "dehyd",
-                                                  "lsstools",
-                                                  "daysvomit",
-                                                  "duration_pre_abx"),
+                                severity_list = c("dysentery_p",
+                                                  "fever_p",
+                                                  "fever_days_p",
+                                                  "dehyd_p",
+                                                  "lsstools_p",
+                                                  "daysvomit_p",
+                                                  "duration_pre_abx_p"),
                                 age_var_name = "age")
 
 one_hot_maled$data$other_diarrhea <- abs(1 - one_hot_maled$data$shigella_attributable)
@@ -309,12 +309,12 @@ maled_data_imp_MSD <- impute_covariates(data = maled_data_MSD,
                                                            "ETEC_new",                              
                                                            "e_bieneusi_new",                        
                                                            "eaec_new",
-                                                           "dysentery",
-                                                           "fever",
-                                                           "fever_days",
-                                                           "dehyd",
-                                                           "lsstools",
-                                                           "daysvomit"))
+                                                           "dysentery_p",
+                                                           "fever_p",
+                                                           "fever_days_p",
+                                                           "dehyd_p",
+                                                           "lsstools_p",
+                                                           "daysvomit_p"))
 
 # Add "age" and "enr_haz" to match wrappers (go back and rename in raw data later)
 maled_data_imp_MSD$age <- maled_data_imp_MSD$agemonths
@@ -335,13 +335,13 @@ one_hot_maled_MSD <- one_hot_encode(data = maled_data_imp_MSD,
                                     abx_var_name = "all_abx",
                                     site_var_name = "site",
                                     site_interaction = TRUE,
-                                    severity_list = c("dysentery",
-                                                      "fever",
-                                                      "fever_days",
-                                                      "dehyd",
-                                                      "lsstools",
-                                                      "daysvomit",
-                                                      "duration_pre_abx"),
+                                    severity_list = c("dysentery_p",
+                                                      "fever_p",
+                                                      "fever_days_p",
+                                                      "dehyd_p",
+                                                      "lsstools_p",
+                                                      "daysvomit_p",
+                                                      "duration_pre_abx_p"),
                                     age_var_name = "age")
 
 one_hot_maled_MSD$data$other_diarrhea <- abs(1 - one_hot_maled_MSD$data$shigella_attributable)
