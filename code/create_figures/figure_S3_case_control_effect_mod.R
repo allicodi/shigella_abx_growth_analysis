@@ -4,7 +4,7 @@
 
 here::i_am("code/create_figures/figure_S3_case_control_effect_mod.R")
 
-maled_results <- readRDS(here::here("results/case_control/maled_msd_tac_or_culture_MSD_no_models.Rds"))
+maled_results <- readRDS(here::here("results/case_control/maled_msd_tac_or_culture_no_models.Rds"))
 gems_results <- readRDS(here::here("results/case_control/gems_tac_or_culture_no_models.Rds"))
 vida_results <- readRDS(here::here("results/case_control/vida_tac_or_culture_no_models.Rds"))
 

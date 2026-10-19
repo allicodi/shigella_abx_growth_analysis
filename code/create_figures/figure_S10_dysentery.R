@@ -33,11 +33,10 @@ plot_data <- plot_data %>%
   )
 
 # Define custom colors for each antibiotic category
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
+                     "No or ineffective antibiotics" = "#ED0000FF")
+
 
 # Order antibiotics in legend
 plot_data$abx <- factor(
@@ -275,11 +274,10 @@ ggsave(
 
 ### Age specific results
 
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
+                     "No or ineffective antibiotics" = "#ED0000FF")
+
 
 res_0_11 <- readRDS(here::here("results/no_etiology/ipd_no_etiology_dysentery_0_11.Rds"))
 res_12_23 <- readRDS(here::here("results/no_etiology/ipd_no_etiology_dysentery_12_23.Rds"))
@@ -391,7 +389,7 @@ ggsave(
   here::here("figures/fig_S10_dysentery_age_specific_no_etiology.png"),
   p_age,
   width = 12,
-  height = 8
+  height = 10
 )
 
 
@@ -422,11 +420,10 @@ plot_data <- plot_data %>%
   )
 
 # Define custom colors for each antibiotic category
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
+                     "No or ineffective antibiotics" = "#ED0000FF")
+
 
 # Order antibiotics in legend
 plot_data$abx <- factor(
@@ -510,11 +507,10 @@ ggsave(
 
 ## Study specific results
 
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
+                     "No or ineffective antibiotics" = "#ED0000FF")
+
 
 maled_res <- readRDS(here::here("results/case_control/maled_cc_dysentery.Rds"))
 gems_res <- readRDS(here::here("results/case_control/gems_cc_dysentery.Rds"))
@@ -653,11 +649,10 @@ ggsave(
 
 ### Age specific results
 
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
+                     "No or ineffective antibiotics" = "#ED0000FF")
+
 
 res_0_11 <- readRDS(here::here("results/case_control/ipd_cc_dysentery_0_11.Rds"))
 res_12_23 <- readRDS(here::here("results/case_control/ipd_cc_dysentery_12_23.Rds"))
@@ -769,5 +764,5 @@ ggsave(
   here::here("figures/fig_S10_dysentery_age_specific_cc.png"),
   p_age,
   width = 12,
-  height = 8
+  height = 10
 )

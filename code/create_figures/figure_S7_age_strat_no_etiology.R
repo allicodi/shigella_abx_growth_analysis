@@ -107,8 +107,8 @@ plot_data <- do.call(rbind, plot_data)
 # Change _ to space for subgroup labels
 plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#42B540FF", 
-                     "Possibly effective antibiotics" = "#00468BFF", 
+subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
                      "No or ineffective antibiotics" = "#ED0000FF")
 
 plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",
@@ -153,11 +153,15 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
 combined_plot <- patchwork::wrap_plots(plot_results, ncol = 1, axis_titles = 'collect') & 
   theme(legend.position = "none") 
 
-ggsave(filename = here::here("results/final/figures/ipd_no_etiology_results_age_stratified.png"), plot = combined_plot, width = 12, height = 8, dpi = 300)
+ggsave(filename = here::here("figures/fig_S7_no_etiology_age_stratified.png"), plot = combined_plot, width = 12, height = 8, dpi = 300)
 
 # ------------------------------------------------------------------------------
 # Case-control plot
 # ------------------------------------------------------------------------------
+
+cc_0_11 <- readRDS(here::here("results/case_control/ipd_cc_0_11_no_models.Rds"))
+cc_12_23 <- readRDS(here::here("results/case_control/ipd_cc_12_23_no_models.Rds"))
+cc_24_59 <- readRDS(here::here("results/case_control/ipd_cc_24_59_no_models.Rds"))
 
 cc_results <- list(cc_0_11,
                    cc_12_23,
@@ -254,8 +258,8 @@ plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 plot_data$subgroup <- gsub("Maybe effective antibiotics", "Possibly effective antibiotics", plot_data$subgroup)
 plot_data$subgroup <- gsub("WHO recommended antibiotics", "Guideline recommended antibiotics", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#42B540FF", 
-                     "Possibly effective antibiotics" = "#00468BFF", 
+subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
                      "No or ineffective antibiotics" = "#ED0000FF")
 
 plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",
@@ -300,4 +304,4 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
 combined_plot <- patchwork::wrap_plots(plot_results, ncol = 1, axis_titles = 'collect') & 
   theme(legend.position = "none") 
 
-ggsave(filename = here::here("figures/fig_S7_no_etiology_age_stratified.png"), plot = combined_plot, width = 14, height = 8, dpi = 300)
+ggsave(filename = here::here("figures/fig_S8_case_control_age_stratified.png"), plot = combined_plot, width = 14, height = 8, dpi = 300)

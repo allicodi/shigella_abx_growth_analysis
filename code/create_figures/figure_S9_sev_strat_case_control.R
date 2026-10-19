@@ -35,8 +35,9 @@ x_loc <- global_x_max - annotation_padding / 2
 subgroup_colors <- c(
   "Less severe diarrhea" = "#00468BFF" , # blue
   "Moderate to severe diarrhea" = "#ED0000FF",  # red
-  "All diarrhea" = "#42B540FF"         # green
+  "All diarrhea" = "#925E9FFF"        # green
 )
+
 
 ggplot2::ggplot(data = plot_data, aes(x = pt_est, y = subgroup, color = subgroup)) +
   geom_point(size = 5) +

@@ -13,19 +13,49 @@ here::i_am("code/create_figures/table_1_ipd.R")
 ipd_data <- readRDS("data/ipd_data/ipd_data_no_etiology.Rds")
 ipd_case_control <- readRDS("data/ipd_data/ipd_data_case_control_msd_tac_or_culture_shig.Rds")
 
+# verify same number cases 
+# sum(ipd_data$shig_attr[ipd_data$study %in% c("GEMS", "VIDA", "MALED")])
+# sum(ipd_case_control$case)
+
 ipd_case_control <- ipd_case_control %>%
   rename( "norovirus_gii_new" = norovirus_new)
 
-# CHECK THAT CASE == SHIG_ATTR
-#table(ipd_case_control$study, ipd_case_control$case)
-#table(ipd_data$study, ipd_data$shig_attr)
-# N CASE == N SHIG ATTR
+################################################################################
+# In-text numbers
+
+# 1. Number of kids overall
+# 2. Number of diarrhea episodes overall
+# 3. Number of episodes attributed to Shigella
+# 3b. Of those, number treated with guideline rec
+# 4. Number of control kids and number of control periods
+
+# 1. Number of kids overall --------------------------------------------------
+
+# join first ids together from data & case control, number of unique first ids
+first_ids <- c(ipd_case_control$first_id, ipd_data$first_id)
+length(unique(first_ids))
+# 29,417
+
+# 2. Number of diarrhea episodes overall ---------------------------------------
 
 # Get N by study (including people diarrhea other etiology)
 N_by_study <- ipd_data %>%
   group_by(study) %>%
   summarise(N = n(),
             N_kids = length(unique(first_id)))
+
+# 26,752 diarrhea episodes (25,179 kids)
+
+# 3. Number of episodes attributed to Shigella ---------------------------------
+
+sum(ipd_data$no_etiology) # 11,236 no etiology episodes
+sum(ipd_data$shig_attr)   # 5,503 shigella attributable
+
+# 3b. Number of episodes attributed to Shigella & treated with guideline rec ---
+
+table(ipd_data$shig_attr, ipd_data$all_abx) # 2567
+
+# 4. Number of control kids and control periods --------------------------------
 
 N_by_study_cc <- ipd_case_control %>%
   group_by(study) %>%
@@ -39,13 +69,21 @@ N_by_study_control <- control %>%
   summarise(N = n(),
             N_kids = length(unique(first_id)))
 
-# Total kids = N_kids in N_by_study + N_kids in N_by_study_control
-sum(N_by_study$N_kids) + sum(N_by_study_control$N_kids)
+# 5898 control periods
+# 4384 unique kids
+
+# 5. Abx types ----------------------------------------------------------------
+
+table(ipd_data$all_abx)
+
+###############################################################################
 
 # Subset case control data to controls only to merge in with no etiology data
 # Remove differing columns
 # Add N and control label
 # Fill in NAs with 0s where applicable
+
+# note table 1 is on episode level- there is some overlap in kids between categories
 control_subset <- ipd_case_control %>%
   mutate(all_abx = dplyr::case_when(
     all_abx == "Maybe effective antibiotics" ~ "Possibly effective antibiotics",
@@ -136,6 +174,9 @@ combo_ipd <- combo_ipd %>%
                       dehyd_level = "Dehydration",
                       duration_pre_enroll = "Duration of episode before enrollment")
 
+# Manually adjust MAL-ED age bin to put all in 12-23 mo
+combo_ipd$age_bin <- ifelse(combo_ipd$study == "MALED" & combo_ipd$age_bin == "24-59 months", "12-23 months", combo_ipd$age_bin)
+
 # Make new var for study x type
 combo_ipd <- combo_ipd %>%
   mutate(study_shig = paste(study, shig_status, sep = "_"))
@@ -170,7 +211,7 @@ table_1 <- tbl_summary(
                 c("stat_3", "stat_6", "stat_9") ~ "**Non-diarrheal control**\n(N = {n})") %>%
   modify_footnote_header("N episodes", columns = all_stat_cols()) %>%
   modify_footnote_header(
-    footnote = "Controls in MALED are periods without diarrhea among 1715 children",
+    footnote = "Controls in MALED are periods without diarrhea among 833 children",
     columns = "stat_6",
     replace = FALSE
   ) %>%
@@ -236,7 +277,7 @@ table_supp <- tbl_summary(
                 c("stat_3", "stat_6", "stat_9") ~ "**Non-diarrheal control**\n(N = {n})") %>%
   #modify_footnote_header("N episodes", columns = all_stat_cols(), replace = FALSE) %>%
   modify_footnote_header(
-    footnote = "Controls in MALED are periods without diarrhea among 1715 children",
+    footnote = "Controls in MALED are periods without diarrhea among 833 children",
     columns = "stat_6",
     replace = FALSE
   ) %>%

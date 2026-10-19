@@ -66,8 +66,8 @@ plot_no_cc <- msm_age_plot_data(age = age_range,
 plot_ne <- bind_rows(plot_who_ne, plot_maybe_ne, plot_no_ne)
 plot_cc <- bind_rows(plot_who_cc, plot_maybe_cc, plot_no_cc)
 
-study_colors <- c("Guideline recommended antibiotics" = '#42B540FF',
-                  "Possibly effective antibiotics" = '#00468BFF',
+study_colors <- c("Guideline recommended antibiotics" = "#00468BFF",
+                  "Possibly effective antibiotics" = "#925E9FFF", 
                   "No or ineffective antibiotics" = "#ED0000FF")
 
 # Make study_name an ordered factor to control legend order
@@ -176,6 +176,7 @@ final_plot <- combined /
   plot_layout(heights = c(10, 1, 1))
 
 ggsave(here::here("figures/fig_2_effect_mod_ipd.png"), final_plot, width = 12, height = 6, dpi = 300)
+ggsave(here::here("figures/fig_2_effect_mod_ipd.pdf"), final_plot, width = 12, height = 6, dpi = 1000)
 
 # ------------------------------------------------------------------------
 # P-values for effect modification
@@ -199,7 +200,7 @@ test_effect_mod <- function(
 }
 
 test_effect_mod(no_etiology_results)
-# no etiology -- 0.199 guideline rec, 0.011 possibly, 0.063 no
+# guideline .12678, no .08299, maybe .03473
 
 test_effect_mod(case_control_results)
-# case control -- 0.198 guideline rec, 0.001 maybe, 0.007 no 
+# case control maybe .001,  guideline .109, no .0108

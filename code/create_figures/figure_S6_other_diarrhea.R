@@ -113,10 +113,10 @@ plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 # No azithromycin should be placebo
 plot_data$subgroup <- gsub("No azithromycin", "Placebo", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#42B540FF", 
-                     "Possibly effective antibiotics" = "#00468BFF", 
+subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
                      "No or ineffective antibiotics" = "#ED0000FF",
-                     "Azithromycin" = "#42B540FF",
+                     "Azithromycin" = "#00468BFF",
                      "Placebo" = "#ED0000FF")
 
 # Make sure subgroup is treated as factor

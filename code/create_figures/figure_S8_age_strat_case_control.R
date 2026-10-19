@@ -103,8 +103,8 @@ plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 plot_data$subgroup <- gsub("Maybe effective antibiotics", "Possibly effective antibiotics", plot_data$subgroup)
 plot_data$subgroup <- gsub("WHO recommended antibiotics", "Guideline recommended antibiotics", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#42B540FF", 
-                     "Possibly effective antibiotics" = "#00468BFF", 
+subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                     "Possibly effective antibiotics" = "#925E9FFF", 
                      "No or ineffective antibiotics" = "#ED0000FF")
 
 plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",

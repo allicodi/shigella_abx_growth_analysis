@@ -44,7 +44,7 @@ colnames(eifs_effect_IR_S) <- c("effect_IR", "effect_S")
 all_eifs <- cbind(IR_results_eifs, S_results_eifs, main_result_eifs)
 colnames(all_eifs) <- c("inf_eif_0_IR","inf_eif_2_IR","inf_eif_1_IR", "no_attr_eif_0_IR","no_attr_2_IR","no_attr_1_IR", "effect_0_IR","effect_2_IR","effect_1_IR",
                         "inf_eif_0_S","inf_eif_2_S","inf_eif_1_S", "no_attr_eif_0_S","no_attr_2_S","no_attr_1_S", "effect_0_S","effect_2_S","effect_1_S",
-                        "inf_eif_1_main","inf_eif_0_main","no_attr_eif_1_main","no_attr_eif_0_main","effect_1_main","effect_0_main")
+                        "inf_eif_2_main","inf_eif_0_main","inf_eif_1_main", "no_attr_eif_2_main","no_attr_eif_0_main","no_attr_eif_1_main","effect_2_main","effect_0_main","effect_1_main") 
 
 gradient_IR <- c(0,0,0,0,1,0,0,0,0,
                  0,0,0,0,0,0,0,0,0,
@@ -131,4 +131,4 @@ sir_plot <- ggplot(subgroup_df, aes(x = pt_est, y = subgroup, color = subgroup))
   coord_cartesian(xlim = c(global_x_min, global_x_max))
 
 ggsave(here::here("figures/fig_5_abx_sus.png"), sir_plot, width = 12, height = 6, dpi = 300)
-
+ggsave(here::here("figures/fig_5_abx_sus.pdf"), sir_plot, width = 12, height = 6, dpi = 1000)

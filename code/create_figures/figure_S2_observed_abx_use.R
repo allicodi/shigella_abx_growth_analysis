@@ -34,8 +34,8 @@ x_loc <- global_x_max - annotation_padding / 2
 # Define custom colors for each subgroup
 subgroup_colors <- c(
   "0-11 months" = "#00468BFF" , # blue
-  "12-23 months" = "#ED0000FF",  # red
-  "24-59 months" = "#42B540FF"         # green
+  "12-23 months" = "#925E9FFF",  # red
+  "24-59 months" = "#ED0000FF"         # green
 )
 
 ggplot2::ggplot(data = plot_data, aes(x = pt_est, y = subgroup, color = subgroup)) +

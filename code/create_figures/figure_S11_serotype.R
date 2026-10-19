@@ -31,11 +31,11 @@ plot_data <- plot_data %>%
   )
 
 # Define custom colors for each antibiotic category
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                "Possibly effective antibiotics" = "#925E9FFF", 
+                "No or ineffective antibiotics" = "#ED0000FF")
+
+
 
 # Order antibiotics in legend
 plot_data$abx <- factor(
@@ -144,11 +144,11 @@ plot_data <- plot_data %>%
   )
 
 # Define custom colors for each antibiotic category
-abx_colors <- c(
-  "Guideline recommended antibiotics" = "#42B540FF",
-  "Possibly effective antibiotics" = "#00468BFF",
-  "No or ineffective antibiotics" = "#ED0000FF"
-)
+abx_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
+                "Possibly effective antibiotics" = "#925E9FFF", 
+                "No or ineffective antibiotics" = "#ED0000FF")
+
+
 
 # Order antibiotics in legend
 plot_data$abx <- factor(
