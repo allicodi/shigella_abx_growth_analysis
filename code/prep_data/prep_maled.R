@@ -2069,9 +2069,15 @@ prep_maled_case_control <- function(case_def = "tac_or_culture_shig_diar", max_c
   final_df$dehyd_g <- factor(final_df$dehyd_g, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
   final_df$dehyd_p <- factor(final_df$dehyd_p, levels = c(0,1,2), labels = c("None", "Some dehydration", "Severe dehydration"))
   
-  # Get rid of extreme HAZ observations
+  # Get rid of extreme HAZ observations (+ same method for WAZ and WHZ)
   final_df$month3_haz <- ifelse(final_df$month3_haz < -6 | final_df$month3_haz > 6, NA, final_df$month3_haz)
   final_df$baseline_haz <- ifelse(final_df$baseline_haz < -6 | final_df$baseline_haz > 6, NA, final_df$baseline_haz)
+  
+  final_df$month3_waz <- ifelse(final_df$month3_waz < -6 | final_df$month3_waz > 6, NA, final_df$month3_waz)
+  final_df$baseline_waz <- ifelse(final_df$baseline_waz < -6 | final_df$baseline_waz > 6, NA, final_df$baseline_waz)
+  
+  final_df$month3_whz <- ifelse(final_df$month3_whz < -6 | final_df$month3_whz > 6, NA, final_df$month3_whz)
+  final_df$baseline_whz <- ifelse(final_df$baseline_whz < -6 | final_df$baseline_whz > 6, NA, final_df$baseline_whz)
   
   final_df$hazdiff <- final_df$month3_haz - final_df$baseline_haz
   final_df$wazdiff <- final_df$month3_waz - final_df$baseline_waz

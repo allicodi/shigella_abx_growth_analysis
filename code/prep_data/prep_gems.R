@@ -2169,6 +2169,8 @@ prep_gems_case_control <- function(case_def = "tac_or_culture_shig_diar"){
                             data_full$F4A_DRH_VOMIT,
                             data_full$F7_VOMIT)
   
+  data_full$vomit <- ifelse(data_full$vomit == 9, NA, data_full$vomit)
+  
   # - fever (F4A_DRH_FEVER = 1 - fever 38C or higher since illness began )
   # for controls at least 38 C in last seven days
   data_full$fever <- ifelse(data_full$case == 1,

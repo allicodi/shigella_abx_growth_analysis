@@ -791,6 +791,9 @@ prep_vida_case_control <- function(case_def = "tac_or_culture_shig_diar"){
   data$dysentery <- ifelse(is.na(data$dysentery), data$F7_BLOOD, data$dysentery)
   data$fever <- ifelse(is.na(data$fever), data$F7_FEVER, data$fever)
   
+  # clean up fever 9s NAs
+  data$fever <- ifelse(data$fever == 9, NA, data$fever)
+  
   data$I_followup_days <- ifelse(is.na(data$followup_days), 0 , 1)
   data$I_followup_days_x_followup_days <- ifelse(is.na(data$followup_days), 0 , data$followup_days)
   
