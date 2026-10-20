@@ -2073,6 +2073,50 @@ maled_data <- maled_data %>%
          ceftriaxone = NA)
 
 # ------------------------------------------------------------------------------
+# Add in EFGH resistance data for Jing's project
+# ------------------------------------------------------------------------------
+
+# Rename to more clear variable names
+efgh_data <- efgh_data %>%
+  rename(azithromycin_resistance = swi_ast_az_int,
+         ciprofloxacin_resistance = swi_ast_cipro_int,
+         ceftriaxone_resistance = swi_ast_ceft_int,
+         pivmecillinam_resistance = swi_ast_piv_int) 
+
+# set to NA in other studies
+abcd_data <- abcd_data %>%
+  mutate(
+    azithromycin_resistance = NA,
+    ciprofloxacin_resistance = NA,
+    ceftriaxone_resistance = NA,
+    pivmecillinam_resistance = NA
+  )
+
+maled_data <- maled_data %>%
+  mutate(
+    azithromycin_resistance = NA,
+    ciprofloxacin_resistance = NA,
+    ceftriaxone_resistance = NA,
+    pivmecillinam_resistance = NA
+  )
+
+gems_data <- gems_data %>%
+  mutate(
+    azithromycin_resistance = NA,
+    ciprofloxacin_resistance = NA,
+    ceftriaxone_resistance = NA,
+    pivmecillinam_resistance = NA
+  )
+
+vida_data <- vida_data %>%
+  mutate(
+    azithromycin_resistance = NA,
+    ciprofloxacin_resistance = NA,
+    ceftriaxone_resistance = NA,
+    pivmecillinam_resistance = NA
+  )
+  
+# ------------------------------------------------------------------------------
 #                                    OUTCOME
 # ------------------------------------------------------------------------------
 
@@ -2213,6 +2257,10 @@ gems_data <- gems_data %>%
          azithromycin,
          ciprofloxacin,
          ceftriaxone,
+         azithromycin_resistance,
+         ciprofloxacin_resistance,
+         ceftriaxone_resistance,
+         pivmecillinam_resistance,
          sex,
          age,
          ses_quintile,
@@ -2288,6 +2336,10 @@ vida_data <- vida_data %>%
          azithromycin,
          ciprofloxacin,
          ceftriaxone,
+         azithromycin_resistance,
+         ciprofloxacin_resistance,
+         ceftriaxone_resistance,
+         pivmecillinam_resistance,
          sex,
          age,
          ses_quintile,
@@ -2385,6 +2437,10 @@ maled_data <- maled_data %>%
          azithromycin,
          ciprofloxacin,
          ceftriaxone,
+         azithromycin_resistance,
+         ciprofloxacin_resistance,
+         ceftriaxone_resistance,
+         pivmecillinam_resistance,
          sex,
          age,
          ses_quintile,
@@ -2463,6 +2519,10 @@ abcd_data <- abcd_data %>%
          azithromycin,
          ciprofloxacin,
          ceftriaxone,
+         azithromycin_resistance,
+         ciprofloxacin_resistance,
+         ceftriaxone_resistance,
+         pivmecillinam_resistance,
          sex,
          age,
          ses_quintile,
@@ -2540,6 +2600,10 @@ efgh_data <- efgh_data %>%
          azithromycin,
          ciprofloxacin,
          ceftriaxone,
+         azithromycin_resistance,
+         ciprofloxacin_resistance,
+         ceftriaxone_resistance,
+         pivmecillinam_resistance,
          sex,
          age,
          ses_quintile,
@@ -2635,6 +2699,10 @@ combo_data <- combo_data %>%
                       azithromycin = "Received azithromycin",
                       ciprofloxacin = "Received ciprofloxacin",
                       ceftriaxone = "Received ceftriaxone",
+                      azithromycin_resistance = "Azithromycin resistance (S = susceptible, I/R = intermediate/resistant)",
+                      ciprofloxacin_resistance = "Ciprofloxacin resistance (S = susceptible, I/R = intermediate/resistant)",
+                      ceftriaxone_resistance = "Ceftriaxone resistance (S = susceptible, I/R = intermediate/resistant)",
+                      pivmecillinam_resistance = "Pivmecillinam resistance (S = susceptible, I/R = intermediate/resistant)",
                       sex = "Sex",
                       age = "Age (months)",
                       ses_quintile = "Socioeconomic quintile",
