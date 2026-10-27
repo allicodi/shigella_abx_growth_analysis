@@ -670,7 +670,6 @@ saveRDS(ipd_results_cc, "results/case_control/ipd_results_msd_case_control_tac_o
 ipd_results_cc$aipw_est$aipw_models <- NULL
 saveRDS(ipd_results_cc, "results/case_control/ipd_results_msd_case_control_no_models_tac_or_culture.Rds")
 
-
 # All cases (include LSD from MAL-ED) --------------------------------------------------------
 ipd_data_all <- readRDS(here::here("data/ipd_data/ipd_data_case_control_tac_or_culture_shig.Rds"))
 
