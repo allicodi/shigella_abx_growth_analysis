@@ -2,7 +2,7 @@
 # Severity stratified observed antibiotics use
 # ---------------------------------------------------
 
-here::i_am("code/create_figures/figure_S9_sev_strat_case_control.R")
+here::i_am("code/create_figures/figure_S1_sev_strat_case_control.R")
 
 no_abx <- readRDS("results/case_control/ipd_no_abx.Rds")
 no_abx_lsd <- readRDS("results/case_control/ipd_no_abx_lsd.Rds")
@@ -33,16 +33,16 @@ x_loc <- global_x_max - annotation_padding / 2
 
 # Define custom colors for each subgroup
 subgroup_colors <- c(
-  "Less severe diarrhea" = "#00468BFF" , # blue
-  "Moderate to severe diarrhea" = "#ED0000FF",  # red
-  "All diarrhea" = "#925E9FFF"        # green
+  "Less severe diarrhea" = "#0072b2", 
+  "Moderate to severe diarrhea" = "#d55e00",  
+  "All diarrhea" = "#cc79a7"  
 )
 
 
 ggplot2::ggplot(data = plot_data, aes(x = pt_est, y = subgroup, color = subgroup)) +
   geom_point(size = 5) +
   geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.3) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "#d55e00") +
   geom_text(aes(x = -0.0225,
                 label = paste0(round(pt_est, 3),
                                " (", round(lower_ci, 3), ", ", round(upper_ci, 3), ")")),
@@ -58,4 +58,4 @@ ggplot2::ggplot(data = plot_data, aes(x = pt_est, y = subgroup, color = subgroup
     axis.text = element_text(size = 12)
   )
 
-ggsave(here::here("figures/fig_S9_obs_abx_use_severity.png"), width = 14, height = 7)
+ggsave(here::here("figures/fig_S1_obs_abx_use_severity.png"), width = 14, height = 7)

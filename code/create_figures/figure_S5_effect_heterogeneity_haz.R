@@ -3,7 +3,7 @@
 # Create effect modification by baseline HAZ figures for IPD
 # ----------------------------------------------------------------
 
-here::i_am("code/create_figures/figure_S15_effect_heterogeneity_haz.R")
+here::i_am("code/create_figures/figure_S5_effect_heterogeneity_haz.R")
 
 library(ggplot2)
 library(patchwork)
@@ -132,8 +132,8 @@ plot_cc <- bind_rows(plot_who_cc, plot_no_cc)
 # ----------------------------------------------------------------
 
 study_colors <- c(
-  "Guideline recommended antibiotics" = "#00468BFF",
-  "No guideline recommended antibiotics" = "#ED0000FF"
+  "Guideline recommended antibiotics" = "#0072b2",
+  "No guideline recommended antibiotics" = "#d55e00"
 )
 
 study_levels <- c(
@@ -308,18 +308,11 @@ final_plot <- combined /
 # ----------------------------------------------------------------
 
 ggsave(
-  here::here("figures/fig_S17_effect_mod_enr_haz.png"),
+  here::here("figures/fig_S5_effect_mod_enr_haz.png"),
   final_plot,
   width = 12,
   height = 6,
   dpi = 300
-)
-
-ggsave(
-  here::here("figures/fig_S17_effect_mod_enr_haz.pdf"),
-  final_plot,
-  width = 12,
-  height = 6
 )
 
 # ----------------------------------------------------------------

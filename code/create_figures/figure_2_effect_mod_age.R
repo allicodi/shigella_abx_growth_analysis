@@ -66,9 +66,9 @@ plot_no_cc <- msm_age_plot_data(age = age_range,
 plot_ne <- bind_rows(plot_who_ne, plot_maybe_ne, plot_no_ne)
 plot_cc <- bind_rows(plot_who_cc, plot_maybe_cc, plot_no_cc)
 
-study_colors <- c("Guideline recommended antibiotics" = "#00468BFF",
-                  "Possibly effective antibiotics" = "#925E9FFF", 
-                  "No or ineffective antibiotics" = "#ED0000FF")
+study_colors <- c("Guideline recommended antibiotics" = "#0072b2",
+                  "Possibly effective antibiotics" = "#cc79a7", 
+                  "No or ineffective antibiotics" = "#d55e00")
 
 # Make study_name an ordered factor to control legend order
 plot_ne$study_name <- factor(plot_ne$study_name,

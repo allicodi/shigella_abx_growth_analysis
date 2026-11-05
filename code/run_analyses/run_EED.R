@@ -792,7 +792,7 @@ one_hot_abcd <- one_hot_encode(data = abcd_data_imp,
                                site_interaction = TRUE,
                                age_var_name = "age")
 
-# "no_etiology" comparator in package = !shigella_bin + no etiologyß
+# "no_etiology" comparator in package = !shigella_bin + no etiology
 one_hot_abcd$data$shigella_not_detected <- as.numeric(!one_hot_abcd$data$shigella_bin & one_hot_abcd$data$no_etiology) 
 
 abcd_results <- agaipw(data = one_hot_abcd$data,

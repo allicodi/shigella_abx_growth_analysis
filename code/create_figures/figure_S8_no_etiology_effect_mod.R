@@ -1,8 +1,8 @@
 # --------------------------------------------------------------------
-# Figure S1: Study-specific heterogeneity by age for no etiology
+# Figure S8: Study-specific heterogeneity by age for no etiology
 # --------------------------------------------------------------------
 
-here::i_am("code/create_figures/figure_S1_no_etiology_effect_mod.R")
+here::i_am("code/create_figures/figure_S8_no_etiology_effect_mod.R")
 
 abcd_results <- readRDS(here::here("results/no_etiology/abcd_results_no_models.Rds"))
 efgh_results <- readRDS(here::here("results/no_etiology/efgh_results_no_models.Rds"))
@@ -155,12 +155,19 @@ ggplot(plot_all_no, aes(x = age, y = est, color = study_name, fill = study_name)
 #                   "ABCD" = "#00468B99",
 #                   "EFGH" = "#AD002A99")
 
-study_colors <- c("GEMS" = "#42B540FF", 
-                  "MALED" = "#ED0000FF",
-                  "VIDA" = "#00468BFF", 
-                  "ABCD" = "#0099B4FF",
-                  "EFGH" = "#925E9FFF")
+# Original
+# study_colors <- c("GEMS" = "#42B540FF", 
+#                   "MALED" = "#ED0000FF",
+#                   "VIDA" = "#00468BFF", 
+#                   "ABCD" = "#0099B4FF",
+#                   "EFGH" = "#925E9FFF")
 
+# Nature color-blind friendly palette 
+study_colors <- c("GEMS" = "#009e73", 
+                  "MALED" = "#d55e00",
+                  "VIDA" = "#0072b2", 
+                  "ABCD" = "#e69f00",
+                  "EFGH" = "#cc79a7")
 
 # Combine all datasets and add a category column
 plot_all_who$category <- "Guideline recommended antibiotics"
@@ -192,4 +199,4 @@ msm_all_plot <- ggplot(plot_all, aes(x = age, y = est, color = study_name, fill 
     axis.ticks = element_line(color = "black", size = 0.2)      # add back thin tick marks
   )
 
-ggsave(here::here("figures/fig_S1_no_etiology_effect_mod_by_study.png"), msm_all_plot,height = 6, width = 8, dpi = 300)
+ggsave(here::here("figures/fig_S8_no_etiology_effect_mod_by_study.png"), msm_all_plot,height = 6, width = 8, dpi = 300)

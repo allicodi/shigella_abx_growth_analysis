@@ -2,7 +2,7 @@
 # Code to make figure 1 comparison of diarrhea with no etiology across studies
 # ----------------------------------------------------------------------------
 
-here::i_am("code/create_figures/figure_S4_culture_no_etiology.R")
+here::i_am("code/create_figures/figure_S15_culture_no_etiology.R")
 
 gems_results <- readRDS(here::here("results/no_etiology/gems_results_culture_no_models.Rds"))
 maled_results <- readRDS(here::here("results/no_etiology/maled_results_MSD_culture_no_models.Rds"))
@@ -112,9 +112,9 @@ plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 # No azithromycin should be placebo
 plot_data$subgroup <- gsub("No azithromycin", "Placebo", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
-                     "Possibly effective antibiotics" = "#925E9FFF", 
-                     "No or ineffective antibiotics" = "#ED0000FF")
+subgroup_colors <- c("Guideline recommended antibiotics" = "#0072b2", 
+                     "Possibly effective antibiotics" = "#cc79a7", 
+                     "No or ineffective antibiotics" = "#d55e00")
 
 # Make sure subgroup is treated as factor
 plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",
@@ -136,7 +136,7 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
   ggplot2::ggplot(data = sub_data, aes(x = pt_est, y = subgroup, color = subgroup)) +
     geom_point(size = 5) +
     geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.3) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "#ED0000FF") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "#d55e00") +
     geom_text(aes(x = x_loc,
                   label = paste0(sprintf("%.2f", pt_est),
                                  " (", sprintf("%.2f", lower_ci), ", ", sprintf("%.2f", upper_ci), ")")),
@@ -160,4 +160,4 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
 combined_plot <- patchwork::wrap_plots(plot_results, ncol = 1, axis_titles = 'collect') & 
   theme(legend.position = "none") 
 
-ggsave(filename = here::here("figures/fig_S4_no_etiology_culture_results.png"), plot = combined_plot, width = 12, height = 12, dpi = 300)
+ggsave(filename = here::here("figures/fig_S15_no_etiology_culture_results.png"), plot = combined_plot, width = 12, height = 12, dpi = 300)

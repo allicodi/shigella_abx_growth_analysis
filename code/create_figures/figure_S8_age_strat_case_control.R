@@ -103,9 +103,9 @@ plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 plot_data$subgroup <- gsub("Maybe effective antibiotics", "Possibly effective antibiotics", plot_data$subgroup)
 plot_data$subgroup <- gsub("WHO recommended antibiotics", "Guideline recommended antibiotics", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
-                     "Possibly effective antibiotics" = "#925E9FFF", 
-                     "No or ineffective antibiotics" = "#ED0000FF")
+subgroup_colors <- c("Guideline recommended antibiotics" = "#0072b2", 
+                     "Possibly effective antibiotics" = "#cc79a7", 
+                     "No or ineffective antibiotics" = "#d55e00")
 
 plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",
                                                             "Possibly effective antibiotics",  
@@ -125,7 +125,7 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
   ggplot2::ggplot(data = sub_data, aes(x = pt_est, y = subgroup, color = subgroup)) +
     geom_point(size = 5) +
     geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.3) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "#ED0000FF") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "#d55e00") +
     geom_text(aes(x = x_loc,
                   label = paste0(round(pt_est, 2),
                                  " (", round(lower_ci, 2), ", ", round(upper_ci, 2), ")")),

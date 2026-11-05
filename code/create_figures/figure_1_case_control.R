@@ -1,28 +1,21 @@
 # ----------------------------------------------------------------------------
-# Code to make figure S5 case control culture across studies
+# Code to make figure 1 case control across studies
 # ----------------------------------------------------------------------------
 
-here::i_am("code/create_figures/figure_S5_culture_case_control.R")
-
-gems_results <- readRDS(here::here("results/case_control/gems_culture_no_models.Rds"))
-vida_results <- readRDS(here::here("results/case_control/vida_culture_no_models.Rds"))
-maled_results <- readRDS(here::here("results/case_control/maled_msd_culture_MSD_no_models.Rds"))
-
-ipd_results <- readRDS(here::here("results/case_control/ipd_results_msd_case_control_no_models_culture.Rds"))
+gems_results <- readRDS(here::here("results/case_control/gems_tac_or_culture_guideline_abx_no_models.Rds"))
+maled_results <- readRDS(here::here("results/case_control/maled_msd_tac_or_culture_MSD_guideline_abx_no_models.Rds"))
+vida_results <- readRDS(here::here("results/case_control/vida_tac_or_culture_guideline_abx_no_models.Rds"))
+ipd_results <- readRDS(here::here("results/case_control/ipd_results_msd_case_control_tac_or_culture_guideline_abx_no_models.Rds"))
 
 results <- list(gems_results, 
-                vida_results,
                 maled_results,
+                vida_results,
                 ipd_results)
 
 abx_labels = NULL
 inf_labels = NULL
 outcome_labels = NULL
-study_labels = c("GEMS", "VIDA", "MAL-ED", "IPD")
-
-# ---------------------------------------------------------------------------
-# 1. Main results
-# ---------------------------------------------------------------------------
+study_labels = c("GEMS", "MAL-ED", "VIDA", "IPD")
 
 # Make dataset with results from all studies
 plot_data <- lapply(1:length(results), function(i) {
@@ -105,25 +98,24 @@ plot_data <- lapply(1:length(results), function(i) {
 
 plot_data <- do.call(rbind, plot_data)
 
-# Change _ to space for subgroup labels
+# Relabel treatment groups
+plot_data$subgroup <- as.character(plot_data$subgroup)
+
+# ABCD stays azithromycin vs placebo
 plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 
-# Make uniform
-plot_data$subgroup <- gsub("Ineffective or no abx", "No or ineffective antibiotics", plot_data$subgroup)
-plot_data$subgroup <- gsub("No Ineffective abx", "No or ineffective antibiotics", plot_data$subgroup)
-plot_data$subgroup <- gsub("Maybe effective abx", "Possibly effective antibiotics", plot_data$subgroup)
-plot_data$subgroup <- gsub("Maybe effective antibiotics", "Possibly effective antibiotics", plot_data$subgroup)
-plot_data$subgroup <- gsub("WHO approved abx", "Guideline recommended antibiotics", plot_data$subgroup)
-plot_data$subgroup <- gsub("WHO recommended antibiotics", "Guideline recommended antibiotics", plot_data$subgroup)
+# No azithromycin should be placebo
+plot_data$subgroup <- gsub("1", "Guideline recommended antibiotics", plot_data$subgroup)
+plot_data$subgroup <- gsub("0", "No guideline recommended antibiotics", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
-                     "Possibly effective antibiotics" = "#925E9FFF", 
-                     "No or ineffective antibiotics" = "#ED0000FF")
+
+subgroup_colors <- c("Guideline recommended antibiotics" = "#0072b2",
+                     "No guideline recommended antibiotics" = "#d55e00")
 
 # Make sure subgroup is treated as factor
-plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",
-                                                            "Possibly effective antibiotics",  
-                                                            "Guideline recommended antibiotics"))
+plot_data$subgroup <- factor(plot_data$subgroup,
+                             levels = c("No guideline recommended antibiotics",
+                                        "Guideline recommended antibiotics"))
 
 # Get xaxis scaling 
 global_x_min <- min(plot_data$lower_ci)
@@ -140,7 +132,7 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
   ggplot2::ggplot(data = sub_data, aes(x = pt_est, y = subgroup, color = subgroup)) +
     geom_point(size = 5) +
     geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.3) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "#ED0000FF") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "#d55e00") +
     geom_text(aes(x = x_loc,
                   label = paste0(sprintf("%.2f", pt_est),
                                  " (", sprintf("%.2f", lower_ci), ", ", sprintf("%.2f", upper_ci), ")")),
@@ -164,4 +156,6 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
 combined_plot <- patchwork::wrap_plots(plot_results, ncol = 1, axis_titles = 'collect') & 
   theme(legend.position = "none") 
 
-ggsave(here::here("figures/fig_S5_case_control_culture.png"), combined_plot, width = 12, height = 12, dpi = 300)
+ggsave(filename = here::here("figures/fig_1_case_control_results_two_level.png"), plot = combined_plot, width = 12, height = 12, dpi = 300)
+ggsave(filename = here::here("figures/fig_1_case_control_results_two_level.pdf"), plot = combined_plot, width = 12, height = 12, dpi = 1000)
+

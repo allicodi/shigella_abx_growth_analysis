@@ -1,30 +1,29 @@
-# ------------------------------------------
-# Other diarrhea comparison figure
-# ------------------------------------------
-
-here::i_am("code/create_figures/figure_S6_other_diarrhea.R")
+# ----------------------------------------------------------------------------
+# Code to make figure 3 comparison of diarrhea with no etiology across studies
+# ----------------------------------------------------------------------------
 
 library(ggplot2)
 
-abcd_results <- readRDS(here::here("results/other_diarrhea/abcd_results_other_diarrhea_no_models.Rds"))
-efgh_results <- readRDS(here::here("results/other_diarrhea/efgh_results_other_diarrhea_no_models.Rds"))
-gems_results <- readRDS(here::here("results/other_diarrhea/gems_results_other_diarrhea_no_models.Rds"))
-vida_results <- readRDS(here::here("results/other_diarrhea/vida_results_other_diarrhea_no_models.Rds"))
-maled_results <- readRDS(here::here("results/other_diarrhea/maled_results_MSD_other_diarrhea_no_models.Rds"))
-ipd_results <- readRDS(here::here("results/other_diarrhea/ipd_other_diarrhea_no_models.Rds"))
+here::i_am("code/create_figures/figure_3_no_etiology.R")
+
+gems_results <- readRDS(here::here("results/no_etiology/gems_results_guideline_abx_no_models.Rds"))
+maled_results <- readRDS(here::here("results/no_etiology/maled_results_MSD_guideline_abx_no_models.Rds"))
+vida_results <- readRDS(here::here("results/no_etiology/vida_results_guideline_abx_no_models.Rds"))
+abcd_results <- readRDS(here::here("results/no_etiology/abcd_results_no_models.Rds"))
+efgh_results <- readRDS(here::here("results/no_etiology/efgh_results_guideline_abx_no_models.Rds"))
+ipd_results <- readRDS(here::here("results/no_etiology/ipd_no_etiology_guideline_abx_no_models.Rds"))
 
 results <- list(gems_results, 
-                maled_results, 
-                vida_results, 
-                abcd_results, 
-                efgh_results, 
+                maled_results,
+                vida_results,
+                abcd_results,
+                efgh_results,
                 ipd_results)
 
 abx_labels = NULL
 inf_labels = NULL
 outcome_labels = NULL
 study_labels = c("GEMS", "MAL-ED", "VIDA", "ABCD", "EFGH", "IPD")
-
 
 # Make dataset with results from all studies
 plot_data <- lapply(1:length(results), function(i) {
@@ -107,24 +106,30 @@ plot_data <- lapply(1:length(results), function(i) {
 
 plot_data <- do.call(rbind, plot_data)
 
-# Change _ to space for subgroup labels
+# Relabel treatment groups
+plot_data$subgroup <- as.character(plot_data$subgroup)
+
+# ABCD stays azithromycin vs placebo
 plot_data$subgroup <- gsub("_", " ", plot_data$subgroup)
 
 # No azithromycin should be placebo
 plot_data$subgroup <- gsub("No azithromycin", "Placebo", plot_data$subgroup)
 
-subgroup_colors <- c("Guideline recommended antibiotics" = "#00468BFF", 
-                     "Possibly effective antibiotics" = "#925E9FFF", 
-                     "No or ineffective antibiotics" = "#ED0000FF",
-                     "Azithromycin" = "#00468BFF",
-                     "Placebo" = "#ED0000FF")
+plot_data$subgroup <- gsub("1", "Guideline recommended antibiotics", plot_data$subgroup)
+plot_data$subgroup <- gsub("0", "No guideline recommended antibiotics", plot_data$subgroup)
+
+
+subgroup_colors <- c("Guideline recommended antibiotics" = "#0072b2",
+                     "No guideline recommended antibiotics" = "#d55e00",
+                     "Azithromycin" = "#0072b2",
+                     "Placebo" = "#d55e00")
 
 # Make sure subgroup is treated as factor
-plot_data$subgroup <- factor(plot_data$subgroup, levels = c("No or ineffective antibiotics",
-                                                            "Placebo",
-                                                            "Possibly effective antibiotics",  
-                                                            "Guideline recommended antibiotics",
-                                                            "Azithromycin"))
+plot_data$subgroup <- factor(plot_data$subgroup,
+                             levels = c("No guideline recommended antibiotics",
+                                        "Placebo",
+                                        "Guideline recommended antibiotics",
+                                        "Azithromycin"))
 
 # Get xaxis scaling 
 global_x_min <- min(plot_data$lower_ci)
@@ -141,10 +146,10 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
   ggplot2::ggplot(data = sub_data, aes(x = pt_est, y = subgroup, color = subgroup)) +
     geom_point(size = 5) +
     geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.3) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "#ED0000FF") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "#d55e00") +
     geom_text(aes(x = x_loc,
-                  label = paste0(round(pt_est, 2),
-                                 " (", round(lower_ci, 2), ", ", round(upper_ci, 2), ")")),
+                  label = paste0(sprintf("%.2f", pt_est),
+                                 " (", sprintf("%.2f", lower_ci), ", ", sprintf("%.2f", upper_ci), ")")),
               hjust = 0, vjust = 0.5, size = 4) +
     labs(title = sub_data$study_label[1],
          x = "HAZ difference (95% CI)",
@@ -165,5 +170,5 @@ plot_results <- lapply(unique(plot_data$study_label), function(x, plot_data){
 combined_plot <- patchwork::wrap_plots(plot_results, ncol = 1, axis_titles = 'collect') & 
   theme(legend.position = "none") 
 
-ggsave(filename = here::here("figures/fig_S6_other_diarrhea.png"), plot = combined_plot, width = 12, height = 12, dpi = 300)
-
+ggsave(filename = here::here("figures/fig_3_no_etiology_results_two_level.png"), plot = combined_plot, width = 12, height = 12, dpi = 300)
+ggsave(filename = here::here("figures/fig_3_no_etiology_results_two_level.pdf"), plot = combined_plot, width = 12, height = 12, dpi = 1000)

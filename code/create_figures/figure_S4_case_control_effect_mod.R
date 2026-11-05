@@ -1,8 +1,8 @@
 # --------------------------------------------------------------------
-# Figure S1: Study-specific heterogeneity by age for case control
+# Figure S4: Study-specific heterogeneity by age for case control
 # --------------------------------------------------------------------
 
-here::i_am("code/create_figures/figure_S3_case_control_effect_mod.R")
+here::i_am("code/create_figures/figure_S4_case_control_effect_mod.R")
 
 maled_results <- readRDS(here::here("results/case_control/maled_msd_tac_or_culture_no_models.Rds"))
 gems_results <- readRDS(here::here("results/case_control/gems_tac_or_culture_no_models.Rds"))
@@ -110,9 +110,9 @@ ggplot(plot_all_no, aes(x = age, y = est, color = study_name, fill = study_name)
   theme_minimal()
 
 
-study_colors <- c("GEMS" = "#42B540FF", 
-                  "MALED" = "#ED0000FF",
-                  "VIDA" = "#00468BFF")
+study_colors <- c("GEMS" = "#009e73", 
+                  "MALED" = "#d55e00",
+                  "VIDA" = "#0072b2")
 
 
 # Combine all datasets and add a category column
@@ -145,4 +145,4 @@ msm_all_plot <- ggplot(plot_all, aes(x = age, y = est, color = study_name, fill 
     axis.ticks = element_line(color = "black", size = 0.2)      # add back thin tick marks
   )
 
-ggsave(here::here("figures/fig_S3_case_control_effect_mod_by_study.png"), msm_all_plot,height = 6, width = 8, dpi = 300)
+ggsave(here::here("figures/fig_S4_case_control_effect_mod_by_study.png"), msm_all_plot,height = 6, width = 8, dpi = 300)

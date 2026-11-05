@@ -97,8 +97,8 @@ subgroup_df$subgroup <- factor(subgroup_df$subgroup, levels = c(
 
 # Set color scheme for subgroups
 subgroup_colors <- c(
-  "Intermediate or Resistant" = "#ED0000FF",
-  "Susceptible" = "#00468BFF"
+  "Intermediate or Resistant" = "#d55e00",
+  "Susceptible" = "#0072b2"
 )
 
 # Define x-axis limits for consistent padding
@@ -109,7 +109,7 @@ global_x_max <- max(subgroup_df$upper_ci) + 0.1
 sir_plot <- ggplot(subgroup_df, aes(x = pt_est, y = subgroup, color = subgroup)) +
   geom_point(size = 5) +
   geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.3) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "#ED0000FF") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "#d55e00") +
   geom_text(aes(x = x_loc,
                 label = paste0(formatC(pt_est, format = "f", digits = 2),
                                " (", formatC(lower_ci, format = "f", digits = 2),

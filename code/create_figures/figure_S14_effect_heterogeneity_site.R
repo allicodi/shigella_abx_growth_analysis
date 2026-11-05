@@ -154,10 +154,10 @@ plot_loo_results <- function(results,
     "No guideline recommended antibiotics"
   
   subgroup_colors <- c(
-    "Guideline recommended antibiotics" = "#00468BFF",
-    "No guideline recommended antibiotics" = "#ED0000FF",
-    "Azithromycin" = "#00468BFF",
-    "Placebo" = "#ED0000FF"
+    "Guideline recommended antibiotics" = "#0072b2",
+    "No guideline recommended antibiotics" = "#d55e00",
+    "Azithromycin" = "#0072b2",
+    "Placebo" = "#d55e00"
   )
   
   plot_data$subgroup <- factor(
@@ -242,7 +242,7 @@ plot_loo_results <- function(results,
       geom_vline(
         xintercept = 0,
         linetype = "dashed",
-        color = "#ED0000FF"
+        color = "#d55e00"
       ) +
       geom_text(
         aes(

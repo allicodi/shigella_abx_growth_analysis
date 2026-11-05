@@ -2,7 +2,7 @@
 # Create figure of the year (MAL-ED longitudinal figure)
 # ------------------------------------------------------------------------
 library(tidyverse)
-here::i_am("code/create_figures/figure_3_MALED_longitudinal.R")
+here::i_am("code/create_figures/figure_4_MALED_longitudinal.R")
 
 # Vector of months
 months <- 1:12
@@ -147,18 +147,18 @@ final_plot <- ggplot(combined_plot_data, aes(x = month_num, y = pt_est, color = 
     fill = "Shigella severity"
   ) +
   scale_color_manual(values = c(
-    "Any Shigella" = "#925E9FFF", 
-    "Moderate-to-Severe Shigella" = "#ED0000FF",
-    "Less-severe Shigella" = "#00468BFF"
+    "Any Shigella" = "#cc79a7", 
+    "Moderate-to-Severe Shigella" = "#d55e00",
+    "Less-severe Shigella" = "#0072b2"
   )) +
   scale_fill_manual(values = c(
-    "Any Shigella" = "#925E9FFF", 
-    "Moderate-to-Severe Shigella" = "#ED0000FF",
-    "Less-severe Shigella" = "#00468BFF"
+    "Any Shigella" = "#cc79a7", 
+    "Moderate-to-Severe Shigella" = "#d55e00",
+    "Less-severe Shigella" = "#0072b2"
   )) +
   theme_minimal(base_size = 14) +
   theme(legend.position = "bottom")
 
-ggsave(filename = here::here("figures/fig_3_longitudinal.png"), final_plot, width = 10, height = 6)
-ggsave(filename = here::here("figures/fig_3_longitudinal.pdf"), final_plot, width = 10, height = 6, dpi = 1000)
+ggsave(filename = here::here("figures/fig_4_longitudinal.png"), final_plot, width = 10, height = 6)
+ggsave(filename = here::here("figures/fig_4_longitudinal.pdf"), final_plot, width = 10, height = 6, dpi = 1000)
 
