@@ -724,6 +724,17 @@
       "Author": "Tony Plate [aut, cre], Richard Heiberger [aut]",
       "Repository": "CRAN"
     },
+    "abxGrowth": {
+      "Package": "abxGrowth",
+      "Version": "0.0.1",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "allicodi",
+      "RemoteRepo": "abxGrowth",
+      "RemoteRef": "main",
+      "RemoteSha": "0d94059f1b3ab88163742f387e7bf4cf4c6f2961"
+    },
     "askpass": {
       "Package": "askpass",
       "Version": "1.2.1",
