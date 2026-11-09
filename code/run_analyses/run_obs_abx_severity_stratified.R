@@ -45,13 +45,11 @@ if(age_stratified){
     caseids_12_23 <- unique(data$case_id[which(data$age >= 12 & data$age < 24 & data$case == 1) ])
     data <- data[which(data$case_id %in% caseids_12_23),]
     
-    #data <- data[data$age >= 12 & data$age < 24,]
   } else{
     
     caseids_24_60 <- unique(data$case_id[which(data$age >= 24 & data$age < 60 & data$case == 1)])
     data <- data[which(data$case_id %in% caseids_24_60),]
     
-    #data <- data[data$age >= 24 & data$age < 60,]
   }
 }
 

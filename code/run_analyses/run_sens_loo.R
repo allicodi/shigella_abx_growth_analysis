@@ -42,9 +42,6 @@ data <- readRDS(here::here("data/ipd_data/ipd_data_no_etiology_bin_abx.Rds"))
 
 studies <- c("ABCD", "MALED", "GEMS", "VIDA", "EFGH")
 
-# Check study variable and values before running
-table(data$study)
-
 for (excluded_study in studies) {
   
   message("Running IPD analysis excluding: ", excluded_study)
@@ -159,8 +156,6 @@ ipd_data <- readRDS(here::here(
 ))
 
 studies <- c("MALED", "GEMS", "VIDA")
-
-table(ipd_data$study)
 
 for (excluded_study in studies) {
   

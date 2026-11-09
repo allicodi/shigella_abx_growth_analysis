@@ -41,36 +41,11 @@ sl.library.abcd.abx <- list(c("SL.glm", "SL.mean"))
 # main dataset uses MSD MAL-ED only
 og_data <- readRDS(here::here("data/ipd_data/ipd_data_no_etiology.Rds"))
 
-# subset data to those with serotyping results
-# ABCD - none - exclude bc used old serotyping genes that were not very good
-# GEMS - culture serotyping - no NAs bc people who did not have culture positive shigella were still coded as 0
-#                           - **fill in culture negative gems with NAs so not mixing with TAC pos, culture neg**
-# VIDA - culture serotyping - only in people with culture shigella, people culture negative coded as NA
-# MAL-ED - TAC serotyping - some people have shigella = no (both tac and culture), but S_flexneri yes? from new dataset. 
-#                         - after much investigating i think bc they were coded no shigella via AFE but still had enough to be retested/typed
-#                         - similarly there are people who do have shigella attributable via tac but did not get retested
-# EFGH - TAC serotyping - NA if no shigella tac attr but all positives have serotype results
-
-# notes/questions:
-# removing ABCD altogether but probably could leave the shigella negative people in for the no etiology estimate?
-
-# a few people have both shigella and flex. i think this is ok broadly (shig flex vs no etiology, shig sonnei vs no etiology, never flex vs sonnei)
-# but the way we coded it you have to fall into one category... 
-# 23 efgh, 4 gems, 5 vida
-# remove for now? can hack around it later
-
-# MAL-ED weirdness with shigella attributable no but still subtyped. i think this is fine too? just noting 
-
-# feels weird to be mixing tac and culture definitions (ex. VIDA there are a bunch of tac positive people who are excluded bc only culture positive has results & coded as NA,
-# vs GEMS tac positive were coded as 0 so being treated as third category?? but i don't know that we want to throw away the tac pos, culture negs, especially given we are using 
-# tac for maled & efgh... so not sure if it'd make more sense to adjust for TAC missingness?? that's more work might have to wait for david for, or could i could try to mimic what we 
-# did for pathogen missingness in dsldensify analysis but idk )
-
 # Remove people who are TAC positive but no serotyping results (all of ABCD, a handful of MAL-ED, ~800 VIDA + ~800 GEMS)
 data <- og_data[which(og_data$study != "ABCD"),]
 data <- data[-which(data$shig_attr == 1 & (is.na(data$shigella_flex) | is.na(data$shigella_sonnei))), ]
 
-# temp if both, remove (32 obs, mostly EFGH). probably should handle this though.
+# if both, remove (32 obs, mostly EFGH)
 data <- data[-which(data$shigella_flex == 1 & data$shigella_sonnei == 1),]
 
 imp_data <- impute_covariates(data = data,
@@ -204,7 +179,7 @@ ipd_data <- readRDS(here::here("data/ipd_data/ipd_data_case_control_msd_tac_or_c
 # Remove people who are cases but no serotyping results (a handful of MAL-ED, ~800 GEMS, ~800 VIDA)
 data <- ipd_data[-which(ipd_data$case == 1 & (is.na(ipd_data$shigella_flex) | is.na(ipd_data$shigella_sonnei))), ]
 
-# temp if both, remove. probably should handle this though.
+# if both, remove
 data <- data[-which(data$shigella_flex == 1 & data$shigella_sonnei == 1),]
 
 

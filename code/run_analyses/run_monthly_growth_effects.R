@@ -74,7 +74,6 @@ for(month in 1:12){
                                                               "mated_bin", 
                                                               "drinkimp",
                                                               "sanitimp",
-                                                              # "ses_wami", 
                                                               "adenovirus_40_41_new",                  
                                                               "aeromonas_new",                         
                                                               "astrovirus_new",                        
@@ -108,7 +107,6 @@ for(month in 1:12){
                                                                  "sex",
                                                                  "agemonths",
                                                                  "baseline_haz",
-                                                                 # "ses_wami", 
                                                                  "mated_bin", 
                                                                  "drinkimp",
                                                                  "sanitimp"))
@@ -130,7 +128,6 @@ for(month in 1:12){
                                                      "mated_bin", 
                                                      "drinkimp",
                                                      "sanitimp",
-                                                     # "ses_wami", 
                                                      "I_followup_days",
                                                      "I_followup_days_x_followup_days"),
                                   abx_var_name = "all_abx",
@@ -531,20 +528,20 @@ for(month in 1:12){
   results$aipw_models <- NULL
   
   if(msd){
-    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_no_wami_msd_", month, "_", seed, ".Rds")))
+    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_msd_", month, "_", seed, ".Rds")))
   } else if(lsd){
-    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_no_wami_lsd_", month, "_", seed, ".Rds")))
+    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_lsd_", month, "_", seed, ".Rds")))
   } else{
-    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_no_wami_", month, "_", seed, ".Rds")))
+    saveRDS(results, here::here(paste0("results/case_control/longitudinal/case_control_no_abx_", month, "_", seed, ".Rds")))
   }
   
 }
 
 
 if(msd){
-  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_msd_no_wami_df.Rds"))
+  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_msd_df.Rds"))
 } else if(lsd){
-  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_lsd_no_wami_df.Rds"))
+  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_lsd_df.Rds"))
 } else{
-  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_no_wami_df.Rds"))
+  saveRDS(msm_age_df_all, here::here("results/case_control/longitudinal/msm_age_df.Rds"))
 }

@@ -13,7 +13,7 @@ mo_seed <- expand.grid(mo = months, seed = seed)
 
 # Load all the RDS files into a list
 mo_list <- lapply(months, function(mo) {
-  readRDS(here::here(sprintf("results/case_control/longitudinal/case_control_no_abx_no_wami_%d_%d.Rds", mo, seed)))
+  readRDS(here::here(sprintf("results/case_control/longitudinal/case_control_no_abx_%d_%d.Rds", mo, seed)))
 })
 
 # mo_list_severe <- lapply(months, function(mo) {
@@ -23,7 +23,7 @@ mo_list <- lapply(months, function(mo) {
 mo_list_severe <- lapply(1:nrow(mo_seed), function(i) {
   row <- mo_seed[i,]
   
-  readRDS(here::here(sprintf("results/case_control/longitudinal/case_control_no_abx_no_wami_msd_%d_%d.Rds", row$mo, row$seed)))
+  readRDS(here::here(sprintf("results/case_control/longitudinal/case_control_no_abx_msd_%d_%d.Rds", row$mo, row$seed)))
 })
 
 # mo_list_mild <- lapply(months, function(mo) {
@@ -33,7 +33,7 @@ mo_list_severe <- lapply(1:nrow(mo_seed), function(i) {
 mo_list_mild <- lapply(1:nrow(mo_seed), function(i) {
   row <- mo_seed[i,]
   
-  readRDS(here::here(sprintf("results/case_control/longitudinal/case_control_no_abx_no_wami_lsd_%d_%d.Rds", row$mo, row$seed)))
+  readRDS(here::here(sprintf("results/case_control/longitudinal/case_control_no_abx_lsd_%d_%d.Rds", row$mo, row$seed)))
 })
 
 # Create a data frame with point estimates and confidence intervals

@@ -47,7 +47,7 @@ sl.library.without.abx <- list(c("SL.glm", "SL.screen.abx.lt.min_prop"),
                                "SL.xgboost")
 
 ################################################################################
-# ORIGINAL VERSIONS -- THREE ANTIBIOTICS LEVELS
+# THREE ANTIBIOTICS LEVELS (no/ineff, possibly effective, guideline)
 ################################################################################
 
 # GEMS ANALYSIS ------------------------------------------------------------
@@ -791,7 +791,7 @@ saveRDS(ipd_results_cc, "results/case_control/ipd_results_case_control_no_models
 
 
 ################################################################################
-# NEW VERSIONS -- TWO ANTIBIOTICS LEVELS (Guideline recommended vs not)
+# TWO ANTIBIOTICS LEVELS (Guideline recommended vs not)
 ################################################################################
 
 # Outcome 1, Missingness -- update for guideline_abx variable

@@ -194,7 +194,7 @@ maled_data_imp <- impute_covariates(data = maled_data,
                                                        "lsstools_p",
                                                        "daysvomit_p"))
 
-# Add "age" and "enr_haz" to match wrappers (go back and rename in raw data later)
+# Add "age" and "enr_haz" to match wrappers 
 maled_data_imp$age <- maled_data_imp$agemonths
 maled_data_imp$enr_haz <- maled_data_imp$baseline_haz
 
@@ -308,7 +308,7 @@ maled_data_imp_MSD <- impute_covariates(data = maled_data_MSD,
                                                            "lsstools_p",
                                                            "daysvomit_p"))
 
-# Add "age" and "enr_haz" to match wrappers (go back and rename in raw data later)
+# Add "age" and "enr_haz" to match wrappers 
 maled_data_imp_MSD$age <- maled_data_imp_MSD$agemonths
 maled_data_imp_MSD$enr_haz <- maled_data_imp_MSD$baseline_haz
 

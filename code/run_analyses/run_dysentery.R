@@ -45,9 +45,6 @@ sl.library.abcd.abx <- list(c("SL.glm", "SL.mean"))
 # main dataset uses MSD MAL-ED only
 data <- readRDS(here::here("data/ipd_data/ipd_data_no_etiology.Rds"))
 
-# temp troubleshoot
-# data <- data[data$study %in% c("MALED", "GEMS", "VIDA"),]
-
 # NOTE - 15 people missing dysentery
 # Exclude
 data <- data[-which(is.na(data$dysentery)),]
