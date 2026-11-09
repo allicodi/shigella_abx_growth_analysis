@@ -58,7 +58,7 @@ Contains subfolders for:
 - The combined IPD datasets used in the meta-analysis
 - **`sample_data/`** - Small simulated datasets for each study and the combined IPD analysis, including both case-only/no-etiology comparison and case-control versions.
 
-The GitHub repository includes simulated datasets for demonstration purposes. The file paths throughout the code reference the original analysis datasets, which are not publicly available in this repository. Users can substitute the corresponding datasets in sample_data/ to demonstrate the reproducibility of the analysis workflow without access to the original data. These simulated datasets are intended for demonstration purposes only and should not be used to reproduce or interpret the study results.
+The GitHub repository includes simulated datasets for demonstration purposes. The file paths throughout the code reference the original analysis datasets, which are not publicly available in this repository. Users can substitute the corresponding datasets in `sample_data/` to demonstrate the analysis workflow without access to the original data. These simulated datasets are intended for demonstration purposes only and should not be used to reproduce or interpret the study results.
 
 See the Data Availability section of the manuscript for further information on accessing the original study data.
 
@@ -74,7 +74,7 @@ The figures in the main manuscript can be reproduced as follows:
 
 ### Data preparation
 
-To prepare the data, from the command line with working directory equal to the project's root directory, execute.
+To prepare the analysis data from raw data, from the command line with working directory equal to the project's root directory, execute:
 
 ```bash
 # TODO: Allison verify
