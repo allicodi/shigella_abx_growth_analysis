@@ -4,7 +4,11 @@
 
 here::i_am("code/run_analyses/run_severity_stratified.R")
 
-devtools::load_all("~/Documents/shigella_projects/packages/abxGrowth")
+# For developmental version locally
+#devtools::load_all("../packages/abxGrowth/")
+
+# From GitHub (installed using devtools::install_github("allicodi/abxGrowth"))
+library(abxGrowth)
 
 library(SuperLearner)
 
