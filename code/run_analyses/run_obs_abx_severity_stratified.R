@@ -2,7 +2,7 @@
 # Script to run analysis stratified by severity for case-control obs abx
 # -------------------------------------------------------------------------
 
-here::i_am("code/run_analyses/run_severity_stratified.R")
+here::i_am("code/run_analyses/run_obs_abx_severity_stratified.R")
 
 # For developmental version locally
 #devtools::load_all("../packages/abxGrowth/")
